@@ -1,0 +1,7 @@
+{
+  "name": "NoseRoast AI",
+  "description": "The world's first head-tracked flight simulator that roasts you when you fail. Use your nose to navigate through high-gravity obstacles while Gemini AI judges your every move.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
