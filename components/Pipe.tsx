@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { PipeData, GameConfig } from '../types';
 
 interface PipeProps {
@@ -7,31 +7,60 @@ interface PipeProps {
   config: GameConfig;
 }
 
-const Pipe: React.FC<PipeProps> = ({ data, config }) => {
-  const bottomPipeHeight = config.height - data.topHeight - data.gap;
+const Pipe: React.FC<PipeProps> = memo(({ data, config }) => {
+  // Ensure minimum heights and valid gap
+  const minPipeHeight = 40;
+  const safeTopHeight = Math.max(minPipeHeight, data.topHeight);
+  const safeGap = Math.max(100, data.gap); // Minimum 100px gap always
+  const bottomPipeHeight = Math.max(minPipeHeight, config.height - safeTopHeight - safeGap);
+
+  // Don't render if heights are invalid
+  if (safeTopHeight <= 0 || bottomPipeHeight <= 0) {
+    return null;
+  }
 
   return (
-    <div className="absolute top-0 h-full" style={{ left: data.x, width: config.pipeWidth }}>
+    <div
+      className="absolute top-0 h-full"
+      style={{
+        left: data.x,
+        width: config.pipeWidth,
+        willChange: 'transform',
+        transform: 'translateZ(0)'
+      }}
+    >
       {/* Top Pipe */}
-      <div 
-        className="absolute top-0 w-full bg-emerald-500 border-x-[6px] border-b-[6px] border-slate-950 rounded-b-2xl shadow-[0_8px_15px_rgba(0,0,0,0.5)]"
-        style={{ height: data.topHeight }}
+      <div
+        className="absolute top-0 w-full bg-emerald-500 border-x-4 border-b-4 border-slate-950 rounded-b-xl"
+        style={{ height: safeTopHeight }}
       >
-        <div className="absolute bottom-0 w-[calc(100%+16px)] left-[-8px] h-12 border-[6px] border-slate-950 bg-emerald-400 rounded-xl shadow-lg" />
-        {/* Subtle Stripe */}
-        <div className="absolute top-0 left-2 w-2 h-full bg-white/10" />
+        {/* Pipe cap - only show if pipe is tall enough */}
+        {safeTopHeight > 30 && (
+          <div
+            className="absolute bottom-0 w-[calc(100%+12px)] left-[-6px] h-8 border-4 border-slate-950 bg-emerald-400 rounded-lg"
+          />
+        )}
       </div>
 
       {/* Bottom Pipe */}
-      <div 
-        className="absolute bottom-0 w-full bg-emerald-500 border-x-[6px] border-t-[6px] border-slate-950 rounded-t-2xl shadow-[0_-8px_15px_rgba(0,0,0,0.5)]"
-        style={{ height: bottomPipeHeight }}
+      <div
+        className="absolute w-full bg-emerald-500 border-x-4 border-t-4 border-slate-950 rounded-t-xl"
+        style={{
+          bottom: 0,
+          height: bottomPipeHeight
+        }}
       >
-        <div className="absolute top-0 w-[calc(100%+16px)] left-[-8px] h-12 border-[6px] border-slate-950 bg-emerald-400 rounded-xl shadow-lg" />
-        <div className="absolute top-0 left-2 w-2 h-full bg-white/10" />
+        {/* Pipe cap - only show if pipe is tall enough */}
+        {bottomPipeHeight > 30 && (
+          <div
+            className="absolute top-0 w-[calc(100%+12px)] left-[-6px] h-8 border-4 border-slate-950 bg-emerald-400 rounded-lg"
+          />
+        )}
       </div>
     </div>
   );
-};
+});
+
+Pipe.displayName = 'Pipe';
 
 export default Pipe;

@@ -5,40 +5,83 @@ import { GameState, PipeData } from './types';
 import { GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS } from './constants';
 import Bird from './components/Bird';
 import Pipe from './components/Pipe';
-import { Camera, RefreshCw, Skull, Play, Loader2, Zap, AlertCircle, Sparkles, TrendingUp, ShieldCheck, Flame, CameraOff, XCircle } from 'lucide-react';
+import AdBlockDetector from './components/AdBlockDetector';
+import { Camera, RefreshCw, Skull, Play, Loader2, Zap, AlertCircle, Sparkles, TrendingUp, ShieldCheck, Flame, CameraOff, XCircle, Smartphone, Share2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import RoastCard from './components/RoastCard';
+import { AdMobService } from './services/admob';
 
-const PRE_INSTALLED_ROASTS = [
-  "Your nose moves like a drunk pigeon.",
-  "Is that your face or did you sit on a beehive?",
-  "Gravity: 1. Your Ego: 0.",
-  "Are you even trying or is this a performance art piece about failure?",
-  "Stick to your day job. Unless it's flying. Then please stop.",
-  "A potato could track better than you.",
-  "Your reflexes are as fast as Internet Explorer.",
-  "I've seen rocks with better aerodynamics.",
-  "Error 404: Skill not found.",
-  "Maybe try moving your head TOWARDS the gap next time?",
-  "Your nose is officially a flight risk.",
-  "That was... painful to watch.",
-  "Gravity is your master now.",
-  "Try moving your head, not just your eyes.",
-  "My grandma tracks better than this.",
-  "Is this a speedrun of failure?",
-  "You fly like a brick.",
-  "A literal bird would be disappointed.",
-  "I've seen better flying from a frozen chicken.",
-  "Your flight path looks like a toddler's drawing.",
-  "Was that a crash or a strategic landing on a pipe?"
+// Playful roasts organized by score ranges - psychological engagement
+const ROASTS_BEGINNER = [ // Score 0-2
+  "First try? Everyone starts somewhere! 🐣",
+  "That was just the warm-up, right? RIGHT?",
+  "Rome wasn't built in a day. Neither was your skill.",
+  "Hey, at least you're consistent... consistently trying!",
+  "Plot twist: the pipes moved. Definitely not your fault.",
+  "Your nose has potential. Let's unlock it!",
+  "Even eagles crash sometimes. You're basically an eagle.",
+  "Speed bump on the road to greatness!",
 ];
 
+const ROASTS_LEARNING = [ // Score 3-7
+  "Ooh, you're getting the hang of it! Almost...",
+  "So close! The pipes are scared of you now.",
+  "That was actually impressive. For a beginner.",
+  "Your nose is evolving! Keep going!",
+  "I've seen worse. I've also seen better. Try again?",
+  "Progress detected! Your face-flying skills are loading...",
+  "You're in the top 80% of players! (We made that up, but still!)",
+  "The Force is awakening in your nose...",
+];
+
+const ROASTS_DECENT = [ // Score 8-15
+  "Now we're talking! You've got moves!",
+  "Impressive focus! Your nose is a certified pilot.",
+  "Double digits incoming! Can you feel it?",
+  "You're making this look easy. Suspiciously easy...",
+  "The student is becoming the master! 🎓",
+  "Alert: Natural talent detected. Continue mission.",
+  "Your friends could never. Go prove it.",
+  "That score deserves a screenshot. Just saying.",
+];
+
+const ROASTS_PRO = [ // Score 16+
+  "Legend status: UNLOCKED 👑",
+  "Okay, are you cheating? That was insane!",
+  "Your nose should be in the Olympics.",
+  "I bow to the Face-Flight Champion!",
+  "Share this. Your friends need to know.",
+  "You've officially broken the game. Congrats!",
+  "NASA called. They want your nose for navigation.",
+  "This score is going viral. Screenshot NOW!",
+];
+
+// Fun loading messages
 const PRE_ROASTS_WAITING = [
-  "Analyzing your pathetic flight path...",
-  "Recalibrating failure sensors...",
-  "Checking for pilot brain cells... none found.",
-  "Preparing the scoreboard of shame...",
-  "Consulting gravity on why you fell...",
-  "Converting embarrassment to digital disappointment...",
+  "Calculating your awesomeness...",
+  "Consulting the roast oracle...",
+  "Measuring nose aerodynamics...",
+  "Computing your comeback story...",
+  "Preparing personalized motivation...",
+  "Summoning the judgment spirits...",
 ];
+
+// Helper function to get roast based on score
+const getRoastForScore = (score: number): string => {
+  let roastPool: string[];
+  if (score <= 2) {
+    roastPool = ROASTS_BEGINNER;
+  } else if (score <= 7) {
+    roastPool = ROASTS_LEARNING;
+  } else if (score <= 15) {
+    roastPool = ROASTS_DECENT;
+  } else {
+    roastPool = ROASTS_PRO;
+  }
+  return roastPool[Math.floor(Math.random() * roastPool.length)];
+};
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('LOADING');
@@ -53,14 +96,85 @@ const App: React.FC = () => {
   const [preRoastText, setPreRoastText] = useState('');
   const [adCountdown, setAdCountdown] = useState(3);
   const [showPermissionError, setShowPermissionError] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [username, setUsername] = useState<string>('');
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  const [isSharing, setIsSharing] = useState(false);
+
+  // Initialize AdMob
+  useEffect(() => {
+    const initAds = async () => {
+      await AdMobService.initialize();
+      // Show banner on startup (Menu)
+      await AdMobService.showBanner();
+    };
+    initAds();
+  }, []);
+
+  // Load username from localStorage on mount
+  useEffect(() => {
+    const savedName = localStorage.getItem('noseroast_username');
+    if (savedName) {
+      setUsername(savedName);
+    }
+  }, []);
+
+  // Save username to localStorage when it changes
+  const handleUsernameChange = (name: string) => {
+    setUsername(name);
+    localStorage.setItem('noseroast_username', name);
+  };
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
+
+  const shareRoast = async () => {
+    if (!cardRef.current || isSharing) return;
+    setIsSharing(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        scale: 2
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const fileName = `roast_${Date.now()}.png`;
+
+      // Save to filesystem first
+      const savedFile = await Filesystem.writeFile({
+        path: fileName,
+        data: dataUrl,
+        directory: Directory.Cache
+      });
+
+      // Share via capacitor share
+      await Share.share({
+        title: 'Nose Roast Judgment',
+        text: `Score: ${score}. Roast: "${commentary}" #NoseRoast`,
+        url: savedFile.uri,
+        dialogTitle: 'Share your Roast'
+      });
+
+    } catch (error) {
+      console.error('Sharing failed', error);
+      // Fallback: Share text only
+      await Share.share({
+        title: 'Nose Roast Judgment',
+        text: `I scored ${score} in Nose Roast! My verdict: "${commentary}" Download: https://play.google.com/store/apps/details?id=com.noseroast.game`,
+        dialogTitle: 'Share your Roast'
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
   const requestRef = useRef<number>(0);
   const lastPipeTimeRef = useRef<number>(0);
   const gameStartTimeRef = useRef<number>(0);
   const birdYRef = useRef<number>(INITIAL_BIRD_Y);
   const pipesRef = useRef<PipeData[]>([]);
+  const lastVideoTimeRef = useRef<number>(-1);
+  const lastProcessTimeRef = useRef<number>(0);
   const speedRef = useRef<number>(GAME_CONFIG.pipeSpeed);
   const gapRef = useRef<number>(GAME_CONFIG.pipeGap);
 
@@ -88,13 +202,42 @@ const App: React.FC = () => {
     initTracking();
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const scaleX = w / GAME_CONFIG.width;
+      const scaleY = h / GAME_CONFIG.height;
+      // Allow slight overflow for immersive feel on phones, or contain strictly?
+      // Strict containment is safer for gameplay visibility.
+      const newScale = Math.min(scaleX, scaleY, 1.5);
+      setScale(newScale * 0.95);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const resetGame = useCallback(() => {
     setScore(0);
     setBirdY(INITIAL_BIRD_Y);
     birdYRef.current = INITIAL_BIRD_Y;
     setRotation(0);
-    setPipes([]);
-    pipesRef.current = [];
+
+    // Spawn initial pipe with guaranteed safe opening at center
+    const initialGap = GAME_CONFIG.pipeGap;
+    const safeTopHeight = (GAME_CONFIG.height - initialGap) / 2; // Center gap
+    const initialPipe: PipeData = {
+      id: Date.now(),
+      x: GAME_CONFIG.width + 100, // Spawn slightly off-screen for smooth entry
+      topHeight: safeTopHeight,
+      gap: initialGap,
+      passed: false
+    };
+
+    setPipes([initialPipe]);
+    pipesRef.current = [initialPipe];
     lastPipeTimeRef.current = Date.now();
     gameStartTimeRef.current = Date.now();
     setCommentary('');
@@ -103,17 +246,31 @@ const App: React.FC = () => {
     setCurrentSpeed(GAME_CONFIG.pipeSpeed);
     setCurrentGap(GAME_CONFIG.pipeGap);
     setAdCountdown(3);
+
+    // Hide banner when starting game
+    AdMobService.hideBanner();
   }, []);
 
   const startCameraAndGame = async () => {
     if (!videoRef.current) return;
     setShowPermissionError(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720, frameRate: 60 } 
+      // Low resolution for better performance on low-end devices
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 320, max: 480 },
+          height: { ideal: 240, max: 360 },
+          frameRate: { ideal: 24, max: 30 }, // Lower FPS = less CPU usage
+          facingMode: 'user'
+        }
       });
       videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+
+      // Fix for iOS/Android video autoplay policies
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play();
+      };
+
       resetGame();
       setGameState('PLAYING');
     } catch (err) {
@@ -124,9 +281,9 @@ const App: React.FC = () => {
   const handleGameOver = useCallback((reason: string) => {
     setGameState('AD_INTERSTITIAL');
     setPreRoastText(PRE_ROASTS_WAITING[Math.floor(Math.random() * PRE_ROASTS_WAITING.length)]);
-    
-    // Pick a local roast instead of calling Gemini API
-    const localRoast = PRE_INSTALLED_ROASTS[Math.floor(Math.random() * PRE_INSTALLED_ROASTS.length)];
+
+    // Get score-appropriate roast for engagement
+    const localRoast = getRoastForScore(score);
 
     let timer = 3;
     const interval = setInterval(() => {
@@ -141,8 +298,13 @@ const App: React.FC = () => {
     }, 1000);
   }, [score]);
 
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback(async () => {
+    // Show interstitial before replaying
+    await AdMobService.showInterstitial();
+
     resetGame();
+    // Ensure banner is hidden again
+    AdMobService.hideBanner();
     setGameState('PLAYING');
   }, [resetGame]);
 
@@ -154,37 +316,68 @@ const App: React.FC = () => {
 
     const elapsedSeconds = (Date.now() - gameStartTimeRef.current) / 1000;
     const progress = Math.min(1, elapsedSeconds / DIFFICULTY_RAMP_SECONDS);
-    
+
     speedRef.current = GAME_CONFIG.pipeSpeed + (DIFFICULTY_MAX_SPEED - GAME_CONFIG.pipeSpeed) * progress;
     gapRef.current = GAME_CONFIG.pipeGap - (GAME_CONFIG.pipeGap - DIFFICULTY_MIN_GAP) * progress;
-    
+
     setCurrentSpeed(speedRef.current);
     setCurrentGap(gapRef.current);
 
     if (videoRef.current && landmarkerRef.current && videoRef.current.readyState >= 2) {
-      const results = landmarkerRef.current.detectForVideo(videoRef.current, performance.now());
-      if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-        const faceY = results.faceLandmarks[0][4].y; 
-        const normalizedY = (faceY - 0.2) / 0.6;
-        const targetY = normalizedY * GAME_CONFIG.height;
-        const clampedY = Math.max(0, Math.min(GAME_CONFIG.height - GAME_CONFIG.birdHeight, targetY));
-        const newY = birdYRef.current + (clampedY - birdYRef.current) * 0.22;
-        setRotation((newY - birdYRef.current) * 6);
-        birdYRef.current = newY;
-        setBirdY(newY);
+      // FPS OPTIMIZATION: Throttle AI to ~15FPS (66ms) for low-end mobile devices
+      const now = performance.now();
+      if (now - lastProcessTimeRef.current > 66) {
+        lastProcessTimeRef.current = now;
+        try {
+          const results = landmarkerRef.current.detectForVideo(videoRef.current, now);
+          if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+            const faceY = results.faceLandmarks[0][4].y;
+            const normalizedY = (faceY - 0.2) / 0.6;
+            const targetY = normalizedY * GAME_CONFIG.height;
+            const clampedY = Math.max(0, Math.min(GAME_CONFIG.height - GAME_CONFIG.birdHeight, targetY));
+            // Smoother interpolation for low FPS tracking
+            const newY = birdYRef.current + (clampedY - birdYRef.current) * 0.5;
+            setRotation((newY - birdYRef.current) * 5);
+            birdYRef.current = newY;
+            setBirdY(newY);
+          }
+        } catch (e) {
+          // Silently handle detection errors to prevent crashes
+        }
       }
     }
 
     const now = Date.now();
-    const spawnInterval = Math.max(750, 1800 - (speedRef.current * 100));
+    // Slower spawn at start, faster as difficulty increases
+    const spawnInterval = Math.max(1200, 2200 - (speedRef.current * 120));
     if (now - lastPipeTimeRef.current > spawnInterval) {
-      const padding = 60;
-      const topHeight = Math.random() * (GAME_CONFIG.height - gapRef.current - (padding * 2)) + padding;
+      // Ensure minimum gap of 150px at all times
+      const gap = Math.max(150, gapRef.current);
+
+      // Safe margins from top and bottom of screen
+      const safeMargin = 80;
+      const minTopHeight = safeMargin;
+      const maxTopHeight = GAME_CONFIG.height - gap - safeMargin;
+
+      let topHeight: number;
+
+      // Check if valid range exists
+      if (maxTopHeight <= minTopHeight) {
+        // Screen too small or gap too big - center the gap
+        topHeight = (GAME_CONFIG.height - gap) / 2;
+      } else {
+        // Random position within safe bounds
+        topHeight = Math.floor(Math.random() * (maxTopHeight - minTopHeight)) + minTopHeight;
+      }
+
+      // Final safety clamp
+      topHeight = Math.max(50, Math.min(topHeight, GAME_CONFIG.height - gap - 50));
+
       pipesRef.current.push({
         id: now,
         x: GAME_CONFIG.width,
         topHeight,
-        gap: gapRef.current,
+        gap,
         passed: false
       });
       lastPipeTimeRef.current = now;
@@ -235,31 +428,39 @@ const App: React.FC = () => {
   }, [update]);
 
   return (
-    <div className="flex items-center justify-center w-screen h-screen bg-slate-950 p-0 sm:p-4 font-inter">
-      <div 
-        className="relative overflow-hidden bg-slate-900 shadow-[0_0_100px_rgba(0,0,0,1)] rounded-none sm:rounded-[3.5rem] border-0 sm:border-[16px] border-slate-950"
-        style={{ width: GAME_CONFIG.width, height: GAME_CONFIG.height }}
+    <div className="flex items-center justify-center w-screen h-screen bg-slate-950 p-0 font-inter overflow-hidden">
+      <AdBlockDetector />
+      <div
+        className="relative overflow-hidden bg-slate-900 shadow-[0_0_100px_rgba(0,0,0,1)] rounded-[2rem] sm:rounded-[3.5rem] border-[8px] sm:border-[16px] border-slate-950"
+        style={{
+          width: GAME_CONFIG.width,
+          height: GAME_CONFIG.height,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center'
+        }}
       >
-        {/* NEURAL BACKGROUND FEED */}
-        <div className="absolute inset-0 z-0">
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
+        {/* NEURAL BACKGROUND FEED - Optimized for low-end devices */}
+        <div className="absolute inset-0 z-0" style={{ willChange: 'auto' }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            width="320"
+            height="240"
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+            style={{ willChange: 'auto', imageRendering: 'auto' }}
           />
-          <div className="absolute inset-0 bg-red-500/10 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-red-500/10" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40" />
-          <div className="scanline" />
         </div>
 
         {/* HUD */}
         {gameState === 'PLAYING' && (
           <div className="absolute top-10 inset-x-0 flex flex-col items-center z-30 pointer-events-none">
             <div className={`transition-all duration-300 ${speedRef.current > 7 ? 'scale-125' : 'scale-100'}`}>
-              <div className="bg-slate-950/70 px-12 py-3 rounded-[2rem] border-2 border-white/10 backdrop-blur-2xl shadow-2xl">
-                <span className="text-7xl font-game text-white drop-shadow-[0_4px_8px_rgba(0,0,0,1)]">
+              <div className="bg-slate-950/80 px-12 py-3 rounded-[2rem] border-2 border-white/10 shadow-lg">
+                <span className="text-7xl font-game text-white drop-shadow-md">
                   {score}
                 </span>
               </div>
@@ -283,28 +484,78 @@ const App: React.FC = () => {
           <div className="absolute bottom-14 w-full h-2 bg-white/5 backdrop-blur-sm z-20" />
         </div>
 
-        {/* START SCREEN */}
+        {/* START SCREEN - Redesigned */}
         {gameState === 'START' && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center z-50 p-10 text-center">
-            <div className="relative mb-10">
-              <div className="w-44 h-44 bg-gradient-to-tr from-orange-600 via-red-500 to-yellow-400 rounded-[3rem] p-4 shadow-[0_30px_60px_rgba(0,0,0,0.6)] border-4 border-white/20 flex items-center justify-center">
-                 <div className="absolute -top-4 -left-4 bg-red-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full border-2 border-white shadow-xl animate-bounce">VIRAL</div>
-                 <Bird y={15} rotation={-15} />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 flex flex-col items-center justify-center z-50 p-6 text-center overflow-hidden">
+            {/* Animated background particles */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-20 left-10 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute bottom-40 right-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+              <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-red-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+            </div>
+
+            {/* Logo Section */}
+            <div className="relative mb-6">
+              <div className="w-36 h-36 bg-gradient-to-br from-orange-500 via-red-500 to-yellow-500 rounded-[2.5rem] p-1 shadow-2xl shadow-orange-500/30">
+                <div className="w-full h-full bg-slate-900 rounded-[2.2rem] flex items-center justify-center overflow-hidden">
+                  <img src="/logo.png" alt="Nose Roast" className="w-[110%] h-[110%] object-contain" />
+                </div>
+              </div>
+              {/* Floating badge */}
+              <div className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[8px] font-black px-3 py-1 rounded-full shadow-lg animate-bounce">
+                🔥 VIRAL
               </div>
             </div>
-            <h1 className="text-6xl font-game text-white tracking-tighter leading-[0.85] mb-4">
-              NOSE<br/><span className="text-orange-500">ROAST</span>
+
+            {/* Title */}
+            <h1 className="text-5xl font-game text-white tracking-tight leading-none mb-2">
+              NOSE<span className="text-orange-500">ROAST</span>
             </h1>
-            <p className="text-white/40 font-bold tracking-[0.4em] text-[9px] uppercase mb-10 text-center">Face-Flight & Neural Roasts</p>
-            
-            <button 
+            <p className="text-white/50 text-xs font-medium tracking-wider mb-6">
+              Fly with your face • Get roasted
+            </p>
+
+            {/* Username Input */}
+            <div className="w-full max-w-xs mb-6">
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2 font-medium">Your Name (for sharing)</p>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  placeholder="Enter your name..."
+                  maxLength={15}
+                  className="w-full bg-white/5 border border-white/10 rounded-full px-5 py-3 text-white text-center text-sm font-medium placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:bg-white/10 transition-all"
+                />
+                {username && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 text-xs">✓</div>
+                )}
+              </div>
+            </div>
+
+            {/* Play Button */}
+            <button
               onClick={startCameraAndGame}
-              className="group relative bg-orange-600 hover:bg-orange-500 text-white px-14 py-6 rounded-[2.5rem] text-3xl font-game transition-all transform hover:scale-105 active:scale-95 shadow-[0_12px_0_rgb(154,52,18)] active:shadow-none translate-y-[-12px] active:translate-y-0"
+              className="group relative bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white px-12 py-5 rounded-full text-2xl font-game transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-orange-500/30"
             >
-              <Play fill="currentColor" size={32} className="inline mr-2" /> START GAME
+              <div className="flex items-center gap-3">
+                <Play fill="currentColor" size={28} />
+                <span>PLAY NOW</span>
+              </div>
             </button>
-            <div className="mt-12 flex items-center gap-2 text-white/30 text-[10px] uppercase font-black tracking-widest">
-              <ShieldCheck size={16} /> Privacy-First Neural Tracking
+
+            {/* High Score Display */}
+            {highScore > 0 && (
+              <div className="mt-4 flex items-center gap-2 text-white/40 text-xs font-medium">
+                <TrendingUp size={14} />
+                <span>Best Score: <span className="text-yellow-400 font-bold">{highScore}</span></span>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="absolute bottom-6 flex items-center gap-2 text-white/20 text-[9px] font-medium">
+              <ShieldCheck size={12} />
+              <span>Camera used for face tracking only</span>
             </div>
           </div>
         )}
@@ -312,55 +563,72 @@ const App: React.FC = () => {
         {/* AD INTERSTITIAL */}
         {gameState === 'AD_INTERSTITIAL' && (
           <div className="absolute inset-0 bg-slate-950 z-[60] flex flex-col items-center justify-center p-8 text-center">
-             <div className="w-full h-80 bg-slate-900 rounded-[3rem] border-4 border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 right-0 bg-white/5 px-6 py-2 text-[10px] font-black text-white/30 tracking-widest uppercase">Sponsored Segment</div>
-                <div className="relative">
-                  <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-                  <div className="absolute inset-0 flex items-center justify-center font-game text-2xl text-white">
-                    {adCountdown}
+            <div className="w-full h-80 bg-slate-900 rounded-[3rem] border-4 border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 bg-white/5 px-6 py-2 text-[10px] font-black text-white/30 tracking-widest uppercase">Sponsored Segment</div>
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center font-game text-2xl text-white">
+                  {adCountdown}
+                </div>
+              </div>
+              <div className="text-center px-10">
+                <p className="text-white/60 font-medium text-sm mb-4 leading-relaxed italic">"{preRoastText}"</p>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-1 w-12 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 animate-[loading_3s_linear_infinite]" style={{ width: '60%' }} />
                   </div>
                 </div>
-                <div className="text-center px-10">
-                   <p className="text-white/60 font-medium text-sm mb-4 leading-relaxed italic">"{preRoastText}"</p>
-                   <div className="flex items-center justify-center gap-2">
-                      <div className="h-1 w-12 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 animate-[loading_3s_linear_infinite]" style={{width: '60%'}} />
-                      </div>
-                   </div>
-                </div>
-             </div>
-             <p className="mt-10 text-white/20 text-[8px] font-black uppercase tracking-[0.6em] animate-pulse">Scanning for skill... none found.</p>
+              </div>
+            </div>
+            <p className="mt-10 text-white/20 text-[8px] font-black uppercase tracking-[0.6em] animate-pulse">Scanning for skill... none found.</p>
           </div>
         )}
 
-        {/* GAMEOVER SCREEN */}
+        {/* GAMEOVER SCREEN - Redesigned */}
         {gameState === 'GAMEOVER' && (
-          <div className="absolute inset-0 bg-red-950/90 backdrop-blur-3xl flex flex-col items-center justify-center z-[70] p-10 text-center text-white">
-            <div className="bg-white/10 p-6 rounded-full mb-6 border border-white/20 shadow-2xl"><Skull size={64} className="text-orange-500" /></div>
-            <h2 className="text-5xl font-game mb-8 tracking-tighter">ROASTED!</h2>
-            
-            <div className="flex gap-4 w-full max-w-sm mb-8">
-               <div className="flex-1 bg-white/5 p-5 rounded-3xl border border-white/10 backdrop-blur-md">
-                  <p className="text-[10px] uppercase text-white/40 font-black mb-1 tracking-widest">Points</p>
-                  <p className="text-5xl font-game text-yellow-400">{score}</p>
-               </div>
-               <div className="flex-1 bg-white/5 p-5 rounded-3xl border border-white/10 backdrop-blur-md">
-                  <p className="text-[10px] uppercase text-white/40 font-black mb-1 tracking-widest">Best</p>
-                  <p className="text-5xl font-game text-emerald-400">{highScore}</p>
-               </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 flex flex-col items-center justify-start z-[70] py-3 px-4 text-center text-white overflow-hidden">
+
+            {/* Top Section - Title */}
+            <div className="w-full mb-2">
+              <h2 className="text-xl font-game mb-0.5 tracking-tight">
+                {score >= highScore && score > 0 ? '🏆 NEW RECORD!' : 'GAME OVER'}
+              </h2>
+              <p className="text-white/50 text-[10px]">
+                {score >= highScore && score > 0 ? 'You beat your best score!' : 'One more try? You got this!'}
+              </p>
             </div>
 
-            <div className="w-full bg-slate-950/60 p-6 rounded-[2rem] mb-10 relative border border-white/10 shadow-2xl">
-               <div className="absolute -top-3 left-8 bg-orange-500 text-white text-[10px] px-4 py-1.5 rounded-full font-black uppercase shadow-lg">Final Judgment</div>
-               <p className="text-xl leading-relaxed italic text-white/90">"{commentary}"</p>
+            {/* Share Card - Smaller to fit */}
+            <div className="flex-shrink-0 mb-2" style={{ transform: 'scale(0.65)', transformOrigin: 'top center', marginBottom: '-80px' }}>
+              <RoastCard score={score} highScore={highScore} roast={commentary} username={username} ref={cardRef} />
             </div>
 
-            <button 
-              onClick={handleRetry}
-              className="group flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 px-14 py-7 rounded-[2.5rem] text-3xl font-game transition-all transform hover:scale-105 active:scale-95 shadow-[0_12px_0_rgb(5,150,105)] active:shadow-none translate-y-[-12px] active:translate-y-0"
-            >
-              <RefreshCw size={32} /> RE-FLAP
-            </button>
+            {/* Buttons Section - Always visible at bottom */}
+            <div className="w-full max-w-xs space-y-2 mt-auto pb-4">
+              {/* PLAY AGAIN BUTTON */}
+              <button
+                onClick={handleRetry}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 py-3.5 px-6 rounded-full text-lg font-game transition-all transform active:scale-95 shadow-xl shadow-emerald-500/30"
+              >
+                <RefreshCw size={20} />
+                <span>PLAY AGAIN</span>
+              </button>
+
+              {/* SHARE BUTTON */}
+              <button
+                onClick={shareRoast}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 py-3 px-6 rounded-full text-base font-game transition-all transform active:scale-95 shadow-xl shadow-indigo-500/30"
+              >
+                {isSharing ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    <Share2 size={18} />
+                    <span>SHARE ROAST</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -375,13 +643,13 @@ const App: React.FC = () => {
               <p className="text-red-200/60 text-sm leading-relaxed mb-8 px-4">
                 NoseRoast AI uses your camera to track your nose for flight. Please click the <span className="text-red-400 font-bold underline">Camera Icon</span> in your address bar or app settings to allow access.
               </p>
-              <button 
+              <button
                 onClick={startCameraAndGame}
                 className="bg-white text-slate-950 font-black uppercase tracking-widest py-5 px-10 rounded-full hover:scale-105 transition-transform"
               >
                 Retry Access
               </button>
-              <button 
+              <button
                 onClick={() => setShowPermissionError(false)}
                 className="block w-full mt-4 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white"
               >
@@ -404,7 +672,7 @@ const App: React.FC = () => {
 
         {/* BOTTOM AD BANNER */}
         <div className="absolute bottom-0 inset-x-0 h-14 bg-slate-950 border-t border-white/5 flex items-center justify-center z-40">
-           <div className="text-[9px] text-white/30 font-black uppercase tracking-[0.4em]">Ready for Play Store</div>
+          <div className="text-[9px] text-white/30 font-black uppercase tracking-[0.4em]">Ready for Play Store</div>
         </div>
       </div>
     </div>

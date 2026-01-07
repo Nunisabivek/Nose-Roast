@@ -1,21 +1,22 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 
 interface BirdProps {
   y: number;
   rotation: number;
 }
 
-const Bird: React.FC<BirdProps> = ({ y, rotation }) => {
+const Bird: React.FC<BirdProps> = memo(({ y, rotation }) => {
   return (
     <div
-      className="absolute transition-transform duration-75 z-20"
+      className="absolute z-20"
       style={{
         top: y,
         left: 50,
         width: 44,
         height: 36,
-        transform: `rotate(${rotation}deg)`,
+        transform: `rotate(${rotation}deg) translateZ(0)`,
+        willChange: 'transform',
       }}
     >
       <div className="relative w-full h-full bg-yellow-400 rounded-full border-[5px] border-slate-950 overflow-hidden shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
@@ -30,6 +31,8 @@ const Bird: React.FC<BirdProps> = ({ y, rotation }) => {
       </div>
     </div>
   );
-};
+});
+
+Bird.displayName = 'Bird';
 
 export default Bird;
