@@ -1,21 +1,31 @@
 
-import React, { memo } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, memo } from 'react';
 
-interface BirdProps {
-  y: number;
-  rotation: number;
+export interface BirdHandle {
+  updatePosition: (y: number, rotation: number) => void;
 }
 
-const Bird: React.FC<BirdProps> = memo(({ y, rotation }) => {
+const Bird = forwardRef<BirdHandle, {}>((_, ref) => {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    updatePosition: (y: number, rotation: number) => {
+      if (elementRef.current) {
+        // Use translate3d for GPU acceleration and better performance
+        elementRef.current.style.transform = `translate3d(0, ${y}px, 0) rotate(${rotation}deg)`;
+      }
+    }
+  }));
+
   return (
     <div
+      ref={elementRef}
       className="absolute z-20"
       style={{
-        top: y,
         left: 50,
         width: 44,
         height: 36,
-        transform: `rotate(${rotation}deg) translateZ(0)`,
+        top: 0,
         willChange: 'transform',
       }}
     >
@@ -35,4 +45,4 @@ const Bird: React.FC<BirdProps> = memo(({ y, rotation }) => {
 
 Bird.displayName = 'Bird';
 
-export default Bird;
+export default memo(Bird);

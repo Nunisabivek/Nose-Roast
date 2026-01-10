@@ -35,9 +35,13 @@
     </application>
 
     <!-- Permissions -->
-
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- Required for AdMob on Android 13+ (API 33+) for personalized ads -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-feature android:name="android.hardware.camera.front" android:required="true" />
 </manifest>

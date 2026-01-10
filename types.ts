@@ -1,5 +1,5 @@
 
-export type GameState = 'START' | 'PLAYING' | 'AD_INTERSTITIAL' | 'GAMEOVER' | 'LOADING';
+export type GameState = 'START' | 'PLAYING' | 'AD_INTERSTITIAL' | 'GAMEOVER' | 'LOADING' | 'COUNTDOWN';
 
 export interface PipeData {
   id: number;
