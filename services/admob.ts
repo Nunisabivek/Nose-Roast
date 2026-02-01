@@ -6,7 +6,8 @@ import {
     AdOptions,
     BannerAdOptions,
     BannerAdPluginEvents,
-    InterstitialAdPluginEvents
+    InterstitialAdPluginEvents,
+    MaxAdContentRating
 } from '@capacitor-community/admob';
 
 // PRODUCTION IDs
@@ -23,11 +24,15 @@ export const AdMobService = {
 
         try {
             // Initialize AdMob
+            // SETTINGS FOR 13+ AUDIENCE (Higher Revenue)
             await AdMob.initialize({
                 initializeForTesting: false,
+                tagForChildDirectedTreatment: false, // App is NOT directed at children (allows personalized ads)
+                tagForUnderAgeOfConsent: false,
+                maxAdContentRating: MaxAdContentRating.Teen, // Allows T-rated ads (larger inventory than G)
             });
             isAdMobInitialized = true;
-            console.log('✅ AdMob Initialized Successfully');
+            console.log('✅ AdMob Initialized (Settings: 13+ / Teen / Personalized)');
 
             // Add event listeners for debugging - Banner events
             AdMob.addListener(BannerAdPluginEvents.Loaded, () => {

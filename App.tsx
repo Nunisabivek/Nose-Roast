@@ -425,11 +425,12 @@ const App: React.FC = () => {
     if (!videoRef.current) return;
     setShowPermissionError(false);
     try {
-      // Optimized camera settings for low-end devices: 640x480 @ 30fps
+      // Optimized camera settings for performance: 320x240 (QVGA) is sufficient for face tracking
+      // and significantly reduces CPU/GPU load compared to 640x480 or higher.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 320 },
+          height: { ideal: 240 },
           frameRate: { ideal: 30, max: 30 },
           facingMode: 'user'
         }
@@ -450,6 +451,11 @@ const App: React.FC = () => {
         setGameCountdown(count);
         if (count <= 0) {
           clearInterval(countdownInterval);
+
+          // Reset timing refs to prevent immediate spawn of second pipe (overlapping issue)
+          gameStartTimeRef.current = Date.now();
+          lastPipeTimeRef.current = Date.now();
+
           setGameState('PLAYING');
           AudioManager.getInstance().playBGM();
         }
@@ -558,10 +564,10 @@ const App: React.FC = () => {
     speedRef.current = GAME_CONFIG.pipeSpeed + (DIFFICULTY_MAX_SPEED - GAME_CONFIG.pipeSpeed) * progress;
     gapRef.current = GAME_CONFIG.pipeGap - (GAME_CONFIG.pipeGap - DIFFICULTY_MIN_GAP) * progress;
 
-    // --- FACE TRACKING (Optimized: 20 FPS detection for low-end devices) ---
-    // Run face detection at 20 FPS (50ms) to drastically reduce CPU load
+    // --- FACE TRACKING (Optimized: 30 FPS detection for low-end devices) ---
+    // Run face detection at 30 FPS (33ms) - balanced between speed and smoothness
     if (videoRef.current && landmarkerRef.current && videoRef.current.readyState >= 2) {
-      if (now - lastProcessTimeRef.current > 50) { // 50ms = 20 FPS for face detection
+      if (now - lastProcessTimeRef.current > 33) {
         lastProcessTimeRef.current = now;
         try {
           const results = landmarkerRef.current.detectForVideo(videoRef.current, now);
@@ -570,8 +576,9 @@ const App: React.FC = () => {
             const normalizedY = (faceY - 0.2) / 0.6;
             const targetY = normalizedY * dims.height;
             const clampedY = Math.max(0, Math.min(dims.height - GAME_CONFIG.birdHeight, targetY));
-            // Aggressive interpolation for ultra-smooth 60 FPS movement
-            const newY = birdYRef.current + (clampedY - birdYRef.current) * 0.4;
+            // Tuned interpolation for 30FPS tracking input: smoother 0.3 (was 0.4)
+            // This prevents "snapping" when new data arrives
+            const newY = birdYRef.current + (clampedY - birdYRef.current) * 0.3;
             birdRotationRef.current = (newY - birdYRef.current) * 2.5;
             birdYRef.current = newY;
           }
@@ -668,7 +675,12 @@ const App: React.FC = () => {
     };
     let passOccurred = 0;
 
-    pipesRef.current = pipesRef.current.filter(p => {
+    // Optimized loop: Backwards iteration to allow splicing without index issues
+    // and avoiding allocating new array with .filter() every frame
+    const pipes = pipesRef.current;
+    for (let i = pipes.length - 1; i >= 0; i--) {
+      const p = pipes[i];
+
       // Horizontal movement
       p.x -= speedRef.current;
 
@@ -690,7 +702,6 @@ const App: React.FC = () => {
         }
 
         // OPTIMIZATION: Only reconfigure pipe when it actually moved
-        // This reduces expensive DOM operations
         const pipeHandle = pipeRefs.current[p.poolIndex];
         if (pipeHandle) {
           pipeHandle.configure(p.topHeight, p.gap, dims.height, GAME_CONFIG.pipeWidth);
@@ -716,10 +727,10 @@ const App: React.FC = () => {
       // Remove off-screen pipes
       if (p.x < -GAME_CONFIG.pipeWidth) {
         pipeRefs.current[p.poolIndex]?.setVisibility(false);
-        return false;
+        // Remove from array (efficient splice since we are iterating backwards)
+        pipes.splice(i, 1);
       }
-      return true;
-    });
+    }
 
     if (passOccurred > 0) {
       scoreRef.current += passOccurred;
@@ -933,7 +944,8 @@ const App: React.FC = () => {
         )}
 
         {/* BOTTOM AD BANNER */}
-        <div className="absolute bottom-0 inset-x-0 h-14 bg-slate-950 border-t border-white/5 flex items-center justify-center z-40">
+        <div className="absolute bottom-0 inset-x-0 h-14 bg-slate-950 border-t border-white/5 flex flex-col items-center justify-center z-40">
+          <span className="text-[10px] text-white/20 font-sans tracking-widest uppercase mb-auto pt-1">Advertisement</span>
         </div>
       </div>
     </div>
