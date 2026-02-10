@@ -1,10 +1,8 @@
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
 import { GameState, PipeData } from './types';
-import { GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS } from './constants';
-import Bird, { BirdHandle } from './components/Bird';
-import Pipe, { PipeHandle } from './components/Pipe';
+import { GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS, CAMERA_CONFIG, FACE_DETECTION_CONFIG, GAME_LOOP_CONFIG } from './constants';
 import AdBlockDetector from './components/AdBlockDetector';
 import { RefreshCw, Play, Loader2, TrendingUp, ShieldCheck, Flame, CameraOff, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -14,10 +12,11 @@ import RoastCard from './components/RoastCard';
 import { AdMobService } from './services/admob';
 import { AudioManager } from './services/AudioManager';
 import { AdMob, InterstitialAdPluginEvents } from '@capacitor-community/admob';
+import GameCanvas from './components/GameCanvas';
 
-
-// Pool size for pipes (recycled for performance)
-const PIPE_POOL_SIZE = 15;
+// Version info for tracking
+const APP_VERSION = '2.0.0';
+const BUILD_DATE = '2025-02-10';
 
 // 🔥 ABSOLUTELY SAVAGE ROASTS - NO MERCY, NO PRAISE, PURE BRUTALITY
 const ROASTS_BEGINNER = [ // Score 0-2 - Complete annihilation
@@ -229,7 +228,7 @@ const CRASH_ROASTS = [
   "Your nose just became a cautionary tale for other noses.",
   "Mission failed. Your face will get 'em next time. (Spoiler: it won't.)",
   "The pipe didn't move. You still crashed into it. Legendary stupidity.",
-  "Your coordination just called in sick. It's terminal.",
+  "Your coordination left the server. Connection timeout: 999ms.",
   "That crash was personal. The pipe remembered you from last time.",
   "Game over! Your nose is filing a lawsuit against your brain.",
   "You got absolutely VIOLATED by that pipe. Call the authorities.",
@@ -254,7 +253,7 @@ const CRASH_ROASTS = [
   "The pipe called its friends over. 'Watch this loser crash again.'",
   "You hit that pipe like you WANTED to lose. Self-sabotage is real.",
   "That wasn't a crash. That was an execution. Public. Brutal.",
-  "Your coordination left the server. Connection timeout: 999ms.",
+  "Your coordination called in sick. It's terminal.",
   "The pipe is laughing. We're laughing. Your nose is crying.",
   "You just got sent back to the main menu. And to therapy.",
   "That crash was so predictable, we saw it coming in 4K HDR.",
@@ -284,7 +283,6 @@ interface InternalPipeState {
   topHeight: number;
   gap: number;
   passed: boolean;
-  poolIndex: number;
   // Moving pipe properties
   isMoving: boolean;
   moveDirection: 1 | -1; // 1 = down, -1 = up
@@ -309,21 +307,22 @@ const App: React.FC = () => {
   });
   const [username, setUsername] = useState<string>('');
   const [isSharing, setIsSharing] = useState(false);
+  const [fps, setFps] = useState(0); // For debugging
 
   // Refs for direct DOM manipulation
-  const birdRef = useRef<BirdHandle>(null);
-  const pipeRefs = useRef<(PipeHandle | null)[]>(Array(PIPE_POOL_SIZE).fill(null));
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<any>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
-  const scoreDisplayRef = useRef<HTMLSpanElement>(null);
 
   // Mutable game state refs (not triggering re-renders)
   const requestRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
   const lastPipeTimeRef = useRef<number>(0);
   const gameStartTimeRef = useRef<number>(0);
   const birdYRef = useRef<number>(INITIAL_BIRD_Y);
   const birdRotationRef = useRef<number>(0);
+  const targetBirdYRef = useRef<number>(INITIAL_BIRD_Y);
   const pipesRef = useRef<InternalPipeState[]>([]);
   const lastProcessTimeRef = useRef<number>(0);
   const speedRef = useRef<number>(GAME_CONFIG.pipeSpeed);
@@ -331,6 +330,8 @@ const App: React.FC = () => {
   const scoreRef = useRef<number>(0);
   const gameStateRef = useRef<GameState>('LOADING');
   const gameDimensionsRef = useRef(gameDimensions);
+  const frameCountRef = useRef<number>(0);
+  const lastFpsUpdateRef = useRef<number>(0);
 
   // Keep refs in sync with state
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -355,6 +356,13 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedName = localStorage.getItem('noseroast_username');
     if (savedName) setUsername(savedName);
+
+    // Load high score
+    const savedHighScore = localStorage.getItem('noseroast_highscore');
+    if (savedHighScore) setHighScore(parseInt(savedHighScore, 10));
+
+    // Log version info
+    console.log(`Nose Roast v${APP_VERSION} - Built: ${BUILD_DATE}`);
   }, []);
 
   const handleUsernameChange = (name: string) => {
@@ -378,7 +386,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Initialize Face Tracking
+  // Initialize Face Tracking - Optimized for 60 FPS
   useEffect(() => {
     const initTracking = async () => {
       try {
@@ -388,9 +396,9 @@ const App: React.FC = () => {
           outputFaceBlendshapes: false, // Disabled for performance
           runningMode: "VIDEO",
           numFaces: 1,
-          minFaceDetectionConfidence: 0.5, // Lower confidence for faster detection
-          minFacePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          minFaceDetectionConfidence: 0.3, // Lower for faster detection
+          minFacePresenceConfidence: 0.3,
+          minTrackingConfidence: 0.3,
         });
         landmarkerRef.current = faceLandmarker;
         setGameState('START');
@@ -409,73 +417,30 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const getNextPipePoolIndex = useCallback((): number => {
-    const usedIndices = new Set(pipesRef.current.map(p => p.poolIndex));
-    for (let i = 0; i < PIPE_POOL_SIZE; i++) {
-      if (!usedIndices.has(i)) return i;
-    }
-    return -1; // No pool slot available
-  }, []);
-
   const resetGame = useCallback(() => {
     // Reset score
     scoreRef.current = 0;
     setScore(0);
 
-    // Reset score display immediately
-    if (scoreDisplayRef.current) {
-      scoreDisplayRef.current.textContent = '0';
-    }
-
-    // Reset bird position - IMPORTANT: set the ref first, then update visually
+    // Reset bird position
     birdYRef.current = INITIAL_BIRD_Y;
+    targetBirdYRef.current = INITIAL_BIRD_Y;
     birdRotationRef.current = 0;
 
-    // Force immediate visual update of bird position
-    requestAnimationFrame(() => {
-      birdRef.current?.updatePosition(INITIAL_BIRD_Y, 0);
-    });
-
-    // Hide all pipes and clear the array
-    pipeRefs.current.forEach(p => p?.setVisibility(false));
+    // Clear pipes
     pipesRef.current = [];
 
-    // Spawn initial pipe off-screen to the right
-    const dims = gameDimensionsRef.current;
-    const safeTopHeight = (dims.height - GAME_CONFIG.pipeGap) / 2;
-    const poolIndex = 0;
-    const initialPipe: InternalPipeState = {
-      id: Date.now(),
-      x: dims.width + 100, // Start off-screen
-      topHeight: safeTopHeight,
-      gap: GAME_CONFIG.pipeGap,
-      passed: false,
-      poolIndex,
-      // Initial pipe is never moving
-      isMoving: false,
-      moveDirection: 1,
-      moveSpeed: 0,
-      baseTopHeight: safeTopHeight,
-      moveRange: 0,
-    };
-    pipesRef.current.push(initialPipe);
-    const pipeHandle = pipeRefs.current[poolIndex];
-    if (pipeHandle) {
-      pipeHandle.configure(safeTopHeight, GAME_CONFIG.pipeGap, dims.height, GAME_CONFIG.pipeWidth);
-      pipeHandle.updatePosition(dims.width + 100);
-      pipeHandle.setVisibility(true);
-    }
-
     // Reset timing and difficulty
-    lastPipeTimeRef.current = Date.now();
-    gameStartTimeRef.current = Date.now();
+    lastPipeTimeRef.current = performance.now();
+    gameStartTimeRef.current = performance.now();
     setCommentary('');
     speedRef.current = GAME_CONFIG.pipeSpeed;
     gapRef.current = GAME_CONFIG.pipeGap;
     setCurrentSpeed(GAME_CONFIG.pipeSpeed);
     setAdCountdown(3);
 
-    // NOTE: Do NOT play BGM here - it will be played after ad closes in handleRetry
+    // Clear canvas
+    canvasRef.current?.clear();
   }, []);
 
   const startCameraAndGame = async () => {
@@ -485,14 +450,13 @@ const App: React.FC = () => {
     if (!videoRef.current) return;
     setShowPermissionError(false);
     try {
-      // Optimized camera settings for performance: 320x240 (QVGA) is sufficient for face tracking
-      // and significantly reduces CPU/GPU load compared to 640x480 or higher.
+      // HIGH QUALITY camera settings - matches native Android quality
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 320 },
-          height: { ideal: 240 },
-          frameRate: { ideal: 30, max: 30 },
-          facingMode: 'user'
+          width: CAMERA_CONFIG.width,
+          height: CAMERA_CONFIG.height,
+          frameRate: CAMERA_CONFIG.frameRate,
+          facingMode: CAMERA_CONFIG.facingMode
         }
       });
       videoRef.current.srcObject = stream;
@@ -513,8 +477,8 @@ const App: React.FC = () => {
           clearInterval(countdownInterval);
 
           // Reset timing refs to prevent immediate spawn of second pipe (overlapping issue)
-          gameStartTimeRef.current = Date.now();
-          lastPipeTimeRef.current = Date.now();
+          gameStartTimeRef.current = performance.now();
+          lastPipeTimeRef.current = performance.now();
 
           setGameState('PLAYING');
           AudioManager.getInstance().playBGM();
@@ -544,7 +508,11 @@ const App: React.FC = () => {
         setCommentary(localRoast); // Replace crash roast with score-based roast
         setScore(scoreRef.current); // Sync final score
         setGameState('GAMEOVER');
-        setHighScore(prev => Math.max(prev, scoreRef.current));
+        setHighScore(prev => {
+          const newHigh = Math.max(prev, scoreRef.current);
+          localStorage.setItem('noseroast_highscore', newHigh.toString());
+          return newHigh;
+        });
       }
     }, 1000);
   }, []);
@@ -558,14 +526,14 @@ const App: React.FC = () => {
 
     // Listen for ad dismissed event
     const dismissListener = await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-      console.log('🎯 Ad dismissed - starting game reset');
+      console.log('Ad dismissed - starting game reset');
       adDismissedResolve();
     });
 
     // 1. Show interstitial ad FIRST
     try {
       await AdMobService.showInterstitial();
-      console.log('📺 Waiting for ad to be dismissed...');
+      console.log('Waiting for ad to be dismissed...');
 
       // Wait for ad to be dismissed OR timeout after 15 seconds
       const timeoutPromise = new Promise<void>(resolve => setTimeout(resolve, 15000));
@@ -581,7 +549,7 @@ const App: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 300));
 
     // 3. NOW reset game state completely (after ad is closed)
-    console.log('🔄 Resetting game after ad...');
+    console.log('Resetting game after ad...');
     AdMobService.hideBanner();
     resetGame();
 
@@ -597,17 +565,33 @@ const App: React.FC = () => {
       if (count <= 0) {
         clearInterval(countdownInterval);
         // Reset timing refs right before playing to ensure fresh start
-        gameStartTimeRef.current = Date.now();
-        lastPipeTimeRef.current = Date.now();
+        gameStartTimeRef.current = performance.now();
+        lastPipeTimeRef.current = performance.now();
         setGameState('PLAYING');
         AudioManager.getInstance().playBGM();
       }
     }, 1000);
   }, [resetGame]);
 
-  // --- THE OPTIMIZED GAME LOOP ---
-  const update = useCallback(() => {
+  // --- THE OPTIMIZED GAME LOOP WITH DELTA TIME ---
+  const update = useCallback((currentTime: number) => {
     requestRef.current = requestAnimationFrame(update);
+
+    // Calculate delta time for frame-rate independent movement
+    const deltaTime = lastTimeRef.current === 0 ? 16.67 : currentTime - lastTimeRef.current;
+    lastTimeRef.current = currentTime;
+
+    // Cap delta time to prevent huge jumps on lag spikes
+    const clampedDeltaTime = Math.min(deltaTime, GAME_LOOP_CONFIG.maxDeltaTime);
+    const deltaSeconds = clampedDeltaTime / 1000;
+
+    // FPS calculation for debugging
+    frameCountRef.current++;
+    if (currentTime - lastFpsUpdateRef.current >= 1000) {
+      setFps(frameCountRef.current);
+      frameCountRef.current = 0;
+      lastFpsUpdateRef.current = currentTime;
+    }
 
     // Allow face tracking during COUNTDOWN so bird is ready when game starts
     const isTrackingAllowed = gameStateRef.current === 'PLAYING' || gameStateRef.current === 'COUNTDOWN';
@@ -616,47 +600,52 @@ const App: React.FC = () => {
     if (!isTrackingAllowed) return;
 
     const dims = gameDimensionsRef.current;
-    const now = performance.now();
 
-    // --- DIFFICULTY RAMPING ---
-    const elapsedSeconds = (Date.now() - gameStartTimeRef.current) / 1000;
+    // --- DIFFICULTY RAMPING (time-based for consistency) ---
+    const elapsedSeconds = (currentTime - gameStartTimeRef.current) / 1000;
     const progress = Math.min(1, elapsedSeconds / DIFFICULTY_RAMP_SECONDS);
     speedRef.current = GAME_CONFIG.pipeSpeed + (DIFFICULTY_MAX_SPEED - GAME_CONFIG.pipeSpeed) * progress;
     gapRef.current = GAME_CONFIG.pipeGap - (GAME_CONFIG.pipeGap - DIFFICULTY_MIN_GAP) * progress;
 
-    // --- FACE TRACKING (Optimized: 30 FPS detection for low-end devices) ---
-    // Run face detection at 30 FPS (33ms) - balanced between speed and smoothness
+    // --- FACE TRACKING (Optimized: 60 FPS detection with interpolation) ---
     if (videoRef.current && landmarkerRef.current && videoRef.current.readyState >= 2) {
-      if (now - lastProcessTimeRef.current > 33) {
-        lastProcessTimeRef.current = now;
+      // Run detection at configured interval (60 FPS)
+      if (currentTime - lastProcessTimeRef.current > FACE_DETECTION_CONFIG.detectionIntervalMs) {
+        lastProcessTimeRef.current = currentTime;
         try {
-          const results = landmarkerRef.current.detectForVideo(videoRef.current, now);
+          const results = landmarkerRef.current.detectForVideo(videoRef.current, currentTime);
           if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-            const faceY = results.faceLandmarks[0][4].y;
-            const normalizedY = (faceY - 0.2) / 0.6;
+            const faceY = results.faceLandmarks[0][FACE_DETECTION_CONFIG.noseLandmarkIndex].y;
+            // Normalize with wider range for better control
+            const normalizedY = (faceY - 0.15) / 0.7;
             const targetY = normalizedY * dims.height;
-            const clampedY = Math.max(0, Math.min(dims.height - GAME_CONFIG.birdHeight, targetY));
-            // Tuned interpolation for 30FPS tracking input: smoother 0.3 (was 0.4)
-            // This prevents "snapping" when new data arrives
-            const newY = birdYRef.current + (clampedY - birdYRef.current) * 0.3;
-            birdRotationRef.current = (newY - birdYRef.current) * 2.5;
-            birdYRef.current = newY;
+            targetBirdYRef.current = Math.max(0, Math.min(dims.height - GAME_CONFIG.birdHeight, targetY));
           }
         } catch (e) { /* ignore */ }
       }
+
+      // Smooth interpolation every frame for 60+ FPS smoothness
+      const smoothing = FACE_DETECTION_CONFIG.positionSmoothing;
+      const newY = birdYRef.current + (targetBirdYRef.current - birdYRef.current) * smoothing;
+      birdRotationRef.current = (newY - birdYRef.current) * 2.5;
+      birdYRef.current = newY;
     }
 
-    // --- UPDATE BIRD (Direct DOM) - Always update visual position ---
-    birdRef.current?.updatePosition(birdYRef.current, birdRotationRef.current);
-
     // Stop here if we're in COUNTDOWN - only track face, don't run game logic
-    if (!isGameRunning) return;
+    if (!isGameRunning) {
+      // Still render the bird position during countdown
+      canvasRef.current?.render(birdYRef.current, birdRotationRef.current, pipesRef.current, scoreRef.current, highScore);
+      return;
+    }
 
-    // --- SPAWN NEW PIPES (More distance at start, closer as difficulty increases) ---
-    const baseInterval = 2500; // Start with 2.5 seconds between pipes
-    const minInterval = 1800; // Increased minimum interval for better spacing
-    const spawnInterval = Math.max(minInterval, baseInterval - (speedRef.current * 100));
-    if (Date.now() - lastPipeTimeRef.current > spawnInterval) {
+    // --- SPAWN NEW PIPES (time-based for consistency) ---
+    // Use time-based spawning instead of frame-based for consistent difficulty
+    const baseInterval = 2200; // milliseconds between pipes
+    const minInterval = 1600;
+    const speedFactor = (speedRef.current - GAME_CONFIG.pipeSpeed) / (DIFFICULTY_MAX_SPEED - GAME_CONFIG.pipeSpeed);
+    const spawnInterval = Math.max(minInterval, baseInterval - (speedFactor * 600));
+
+    if (currentTime - lastPipeTimeRef.current > spawnInterval) {
       // GUARANTEED GAP LOGIC
       const pipeGap = Math.max(160, gapRef.current);
       const minWall = 60; // Absolute minimum height for top/bottom pipes
@@ -674,9 +663,6 @@ const App: React.FC = () => {
 
       // Double check constraints (clamp)
       topHeight = Math.max(minWall, Math.min(topHeight, dims.height - pipeGap - minWall));
-
-      const poolIndex = getNextPipePoolIndex();
-      if (poolIndex === -1) return; // Safety check: Skip spawn if pool is full
 
       // MOVING PIPE LOGIC - starts after score 3 (earlier to make it exciting!)
       const currentScore = scoreRef.current;
@@ -708,7 +694,6 @@ const App: React.FC = () => {
         topHeight,
         gap: pipeGap,
         passed: false,
-        poolIndex,
         isMoving,
         moveDirection: Math.random() < 0.5 ? 1 : -1, // Random start direction
         moveSpeed,
@@ -717,16 +702,10 @@ const App: React.FC = () => {
       };
       pipesRef.current.push(newPipe);
 
-      const pipeHandle = pipeRefs.current[poolIndex];
-      if (pipeHandle) {
-        pipeHandle.configure(topHeight, pipeGap, dims.height, GAME_CONFIG.pipeWidth);
-        pipeHandle.updatePosition(dims.width);
-        pipeHandle.setVisibility(true);
-      }
-      lastPipeTimeRef.current = Date.now();
+      lastPipeTimeRef.current = currentTime;
     }
 
-    // --- MOVE PIPES & CHECK COLLISIONS ---
+    // --- MOVE PIPES & CHECK COLLISIONS (delta-time based) ---
     const birdRect = {
       left: 50 + 12,
       right: 50 + GAME_CONFIG.birdWidth - 12,
@@ -735,19 +714,23 @@ const App: React.FC = () => {
     };
     let passOccurred = 0;
 
+    // Use pixels-per-second for smooth movement at any frame rate
+    const pixelsPerSecond = speedRef.current * 60; // Base speed is at 60 FPS
+    const moveAmount = pixelsPerSecond * deltaSeconds;
+
     // Optimized loop: Backwards iteration to allow splicing without index issues
-    // and avoiding allocating new array with .filter() every frame
     const pipes = pipesRef.current;
     for (let i = pipes.length - 1; i >= 0; i--) {
       const p = pipes[i];
 
-      // Horizontal movement
-      p.x -= speedRef.current;
+      // Horizontal movement (delta-time based)
+      p.x -= moveAmount;
 
-      // VERTICAL MOVEMENT for moving pipes
+      // VERTICAL MOVEMENT for moving pipes (delta-time based)
       if (p.isMoving) {
-        // Move in current direction
-        p.topHeight += p.moveSpeed * p.moveDirection;
+        // Move in current direction (pixels per second)
+        const verticalSpeed = p.moveSpeed * 60;
+        p.topHeight += verticalSpeed * deltaSeconds * p.moveDirection;
 
         // Reverse direction if hitting bounds
         const minBound = p.baseTopHeight - p.moveRange;
@@ -760,16 +743,7 @@ const App: React.FC = () => {
           p.topHeight = maxBound;
           p.moveDirection = -1; // Start moving up
         }
-
-        // OPTIMIZATION: Only reconfigure pipe when it actually moved
-        const pipeHandle = pipeRefs.current[p.poolIndex];
-        if (pipeHandle) {
-          pipeHandle.configure(p.topHeight, p.gap, dims.height, GAME_CONFIG.pipeWidth);
-        }
       }
-
-      // Update horizontal position (always happens)
-      pipeRefs.current[p.poolIndex]?.updatePosition(p.x);
 
       // Check pass
       if (!p.passed && p.x + GAME_CONFIG.pipeWidth < 50) {
@@ -786,7 +760,6 @@ const App: React.FC = () => {
 
       // Remove off-screen pipes
       if (p.x < -GAME_CONFIG.pipeWidth) {
-        pipeRefs.current[p.poolIndex]?.setVisibility(false);
         // Remove from array (efficient splice since we are iterating backwards)
         pipes.splice(i, 1);
       }
@@ -794,7 +767,6 @@ const App: React.FC = () => {
 
     if (passOccurred > 0) {
       scoreRef.current += passOccurred;
-      if (scoreDisplayRef.current) scoreDisplayRef.current.textContent = String(scoreRef.current);
       AudioManager.getInstance().playSound('score');
     }
 
@@ -802,7 +774,10 @@ const App: React.FC = () => {
     if (birdYRef.current <= -40 || birdYRef.current >= dims.height - GAME_CONFIG.birdHeight + 40) {
       handleGameOver("out of bounds");
     }
-  }, [handleGameOver, getNextPipePoolIndex]);
+
+    // --- RENDER via Canvas (single draw call) ---
+    canvasRef.current?.render(birdYRef.current, birdRotationRef.current, pipesRef.current, scoreRef.current, highScore);
+  }, [handleGameOver, highScore]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(update);
@@ -813,20 +788,42 @@ const App: React.FC = () => {
     <div className="w-screen h-screen bg-slate-950 p-0 font-inter overflow-hidden">
       <AdBlockDetector />
       <div className="relative w-full h-full bg-slate-900 overflow-hidden" style={{ width: '100vw', height: '100vh' }}>
-        {/* Video Background */}
+        {/* Video Background - High Quality */}
         <div className="absolute inset-0 z-0">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" style={{ willChange: 'auto' }} />
-          {/* Simplified overlay for better performance */}
-          <div className="absolute inset-0 bg-slate-950/20" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+            style={{
+              willChange: 'transform',
+              filter: 'contrast(1.05) saturate(1.1)', // Slight enhancement for visibility
+            }}
+          />
+          {/* Subtle overlay for game visibility */}
+          <div className="absolute inset-0 bg-slate-950/15" />
         </div>
 
-        {/* HUD */}
+        {/* Game Canvas - Native Performance Rendering */}
+        <GameCanvas
+          ref={canvasRef}
+          width={gameDimensions.width}
+          height={gameDimensions.height}
+          pipeWidth={GAME_CONFIG.pipeWidth}
+        />
+
+        {/* FPS Counter (Debug - only visible in development) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="absolute top-2 right-2 z-50 bg-black/70 text-white text-xs px-2 py-1 rounded">
+            FPS: {fps} | v{APP_VERSION}
+          </div>
+        )}
+
+        {/* HUD - Speed/Level Indicator */}
         {gameState === 'PLAYING' && (
-          <div className="absolute top-10 inset-x-0 flex flex-col items-center z-30 pointer-events-none">
-            <div className="bg-slate-950/80 px-12 py-3 rounded-[2rem] border-2 border-white/10 shadow-lg">
-              <span ref={scoreDisplayRef} className="text-7xl font-game text-white drop-shadow-md">0</span>
-            </div>
-            <div className="mt-4 flex gap-2">
+          <div className="absolute top-24 inset-x-0 flex justify-center z-30 pointer-events-none">
+            <div className="flex gap-2">
               <div className="flex items-center gap-1.5 px-4 py-1.5 bg-orange-600 rounded-full border-2 border-slate-950 shadow-lg">
                 <Flame size={12} fill="currentColor" className="text-white" />
                 <span className="text-[10px] font-game text-white">HEAT {currentSpeed.toFixed(1)}</span>
@@ -838,16 +835,6 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Game Layer */}
-        <div className="relative z-10 w-full h-full">
-          {/* Pipe Pool */}
-          {Array.from({ length: PIPE_POOL_SIZE }).map((_, i) => (
-            <Pipe key={i} ref={el => { pipeRefs.current[i] = el; }} pipeWidth={GAME_CONFIG.pipeWidth} />
-          ))}
-          <Bird ref={birdRef} />
-          <div className="absolute bottom-14 w-full h-2 bg-white/5 backdrop-blur-sm z-20" />
-        </div>
 
         {/* START SCREEN */}
         {gameState === 'START' && (
@@ -873,6 +860,9 @@ const App: React.FC = () => {
               {/* Title */}
               <h1 className="text-4xl font-game text-white tracking-tight leading-none mb-1">NOSE<span className="text-orange-500">ROAST</span></h1>
               <p className="text-white/50 text-xs font-medium tracking-wider mb-5">Fly with your face • Get roasted</p>
+
+              {/* Version Badge */}
+              <div className="text-white/30 text-[10px] mb-4">v{APP_VERSION} • Optimized Edition</div>
 
               {/* Username Input */}
               <div className="w-full max-w-xs mb-5">
@@ -1000,6 +990,7 @@ const App: React.FC = () => {
           <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center z-[100] text-white">
             <div className="relative"><div className="w-24 h-24 border-8 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-8" /><div className="absolute inset-0 flex items-center justify-center font-black text-orange-400 text-xs">OS</div></div>
             <p className="text-[10px] font-game tracking-[0.5em] text-white/40 animate-pulse uppercase">Waking up Neural Sensors...</p>
+            <p className="text-[8px] text-white/20 mt-2">v{APP_VERSION}</p>
           </div>
         )}
 
