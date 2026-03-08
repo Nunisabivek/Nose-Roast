@@ -19,10 +19,10 @@ export const INITIAL_BIRD_Y = 300;
 
 // Camera quality settings - High quality for display, optimized for detection
 export const CAMERA_CONFIG = {
-  // High resolution for video display
-  width: { ideal: 1920, min: 1280 },
-  height: { ideal: 1080, min: 720 },
-  frameRate: { ideal: 60, max: 60 },
+  // High resolution for video display without strict minimums to avoid device locks
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 30, max: 60 },
   facingMode: 'user' as const,
   // Processing resolution (lower for face detection performance)
   processWidth: 640,
@@ -31,10 +31,10 @@ export const CAMERA_CONFIG = {
 
 // Face detection optimization
 export const FACE_DETECTION_CONFIG = {
-  // Run detection at 60 FPS for smoother tracking
-  detectionIntervalMs: 16, // ~60 FPS
+  // Run detection at ~30 FPS for much better battery and performance
+  detectionIntervalMs: 33, // ~30 FPS
   // Smooth interpolation factor (higher = smoother but more latency)
-  positionSmoothing: 0.25,
+  positionSmoothing: 0.35,
   // Nose landmark index in MediaPipe
   noseLandmarkIndex: 4,
   // Detection region of interest (crop to face area for speed)

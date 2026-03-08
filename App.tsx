@@ -301,6 +301,7 @@ const App: React.FC = () => {
   const [adCountdown, setAdCountdown] = useState(3);
   const [gameCountdown, setGameCountdown] = useState(3); // 3-2-1 countdown before game
   const [showPermissionError, setShowPermissionError] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [gameDimensions, setGameDimensions] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : GAME_CONFIG.width,
     height: typeof window !== 'undefined' ? window.innerHeight : GAME_CONFIG.height
@@ -789,20 +790,20 @@ const App: React.FC = () => {
       <AdBlockDetector />
       <div className="relative w-full h-full bg-slate-900 overflow-hidden" style={{ width: '100vw', height: '100vh' }}>
         {/* Video Background - High Quality */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-black">
           <video
             ref={videoRef}
             autoPlay
             playsInline
+            webkit-playsinline="true"
             muted
-            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             style={{
-              willChange: 'transform',
-              filter: 'contrast(1.05) saturate(1.1)', // Slight enhancement for visibility
+              transform: 'scaleX(-1)', // Use style directly to prevent WebView render crash
             }}
           />
           {/* Subtle overlay for game visibility */}
-          <div className="absolute inset-0 bg-slate-950/15" />
+          <div className="absolute inset-0 bg-slate-950/25" />
         </div>
 
         {/* Game Canvas - Native Performance Rendering */}
@@ -879,7 +880,17 @@ const App: React.FC = () => {
               {highScore > 0 && <div className="mt-3 flex items-center gap-2 text-white/40 text-xs font-medium"><TrendingUp size={14} /><span>Best Score: <span className="text-yellow-400 font-bold">{highScore}</span></span></div>}
 
               {/* Footer */}
-              <div className="mt-4 flex items-center gap-2 text-white/20 text-[9px] font-medium"><ShieldCheck size={12} /><span>Camera used for face tracking only</span></div>
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2 text-white/20 text-[9px] font-medium">
+                  <ShieldCheck size={12} /><span>Camera used for face tracking only</span>
+                </div>
+                <button
+                  onClick={() => setShowPrivacy(true)}
+                  className="text-white/40 hover:text-white/80 text-[10px] underline transition-colors"
+                >
+                  Privacy Policy
+                </button>
+              </div>
             </div>
 
             {/* BOTTOM BANNER AD SPACE */}
@@ -991,6 +1002,39 @@ const App: React.FC = () => {
             <div className="relative"><div className="w-24 h-24 border-8 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-8" /><div className="absolute inset-0 flex items-center justify-center font-black text-orange-400 text-xs">OS</div></div>
             <p className="text-[10px] font-game tracking-[0.5em] text-white/40 animate-pulse uppercase">Waking up Neural Sensors...</p>
             <p className="text-[8px] text-white/20 mt-2">v{APP_VERSION}</p>
+          </div>
+        )}
+
+        {/* PRIVACY POLICY MODAL */}
+        {showPrivacy && (
+          <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-3xl z-[200] flex items-center justify-center p-6">
+            <div className="w-full max-h-[80vh] bg-slate-900 border border-white/10 rounded-3xl flex flex-col overflow-hidden shadow-2xl relative">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-950/50">
+                <h3 className="text-xl font-game text-white">PRIVACY POLICY</h3>
+                <button onClick={() => setShowPrivacy(false)} className="text-white/50 hover:text-white text-xl px-2">&times;</button>
+              </div>
+              <div className="p-5 overflow-y-auto text-white/80 text-xs leading-relaxed font-sans flex-1">
+                <p className="mb-3 font-semibold text-orange-400">1. Information We Collect</p>
+                <p className="mb-2 uppercase text-[10px] text-white/50">Camera and Facial Data</p>
+                <p className="mb-4">Nose Roast uses your device's camera strictly for gameplay mechanics. We do not record, transmit, or share any image, video, or facial recognition data. All processing occurs locally on your device in real-time and is discarded.</p>
+
+                <p className="mb-2 uppercase text-[10px] text-white/50">Local Device Storage</p>
+                <p className="mb-4">We save your in-game high score and username locally. This data remains on your device and is not sent to our servers.</p>
+
+                <p className="mb-2 uppercase text-[10px] text-white/50">Advertising Data</p>
+                <p className="mb-4">Our App uses Google AdMob to display advertisements. AdMob may collect and process certain information (e.g., Device IDs, IP addresses) to provide personalized ads. You can opt out via your device settings.</p>
+
+                <p className="mb-3 font-semibold text-orange-400">2. Data Sharing and Disclosure</p>
+                <p className="mb-4">We do not sell, rent, or trade your personal data. We only share data with Google AdMob to display advertisements within the App.</p>
+
+                <p className="mb-4">By playing the game, you consent to this policy. For the full privacy policy online, please visit the privacy policy URL shown in our App Store listing.</p>
+              </div>
+              <div className="p-4 border-t border-white/10 bg-slate-950/50 text-center flex justify-center">
+                <button onClick={() => setShowPrivacy(false)} className="bg-orange-500 hover:bg-orange-600 text-white font-game px-8 py-3 rounded-full w-full max-w-[200px] transition-colors shadow-lg shadow-orange-500/20">
+                  I UNDERSTAND
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
