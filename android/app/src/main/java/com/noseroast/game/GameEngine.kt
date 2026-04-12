@@ -55,6 +55,7 @@ class GameEngine(val dp: Float) {
     var prevBirdY by mutableFloatStateOf(0.5f)
         private set
     private var targetBirdY = 0.5f
+    private var birdVelocityY = 0f
 
     var onScoreEvent: (() -> Unit)? = null
     var onCrashEvent: (() -> Unit)? = null
@@ -80,6 +81,7 @@ class GameEngine(val dp: Float) {
         currentSpeed = BASE_SPEED
         currentGap = BASE_GAP
         targetBirdY = smoothBirdY
+        birdVelocityY = 0f
         status = GameStatus.COUNTDOWN
         invalidate()
     }
@@ -185,12 +187,14 @@ class GameEngine(val dp: Float) {
     private fun animateBird(dt: Float) {
         prevBirdY = smoothBirdY
 
-        // Higher base + stronger boost = bird tracks nose faster while still interpolating smoothly.
-        val distance = abs(targetBirdY - smoothBirdY)
-        val baseSmoothing = 0.38f               // was 0.28 — more responsive baseline
-        val boost = (distance * 1.8f).coerceIn(0f, 0.38f)  // was 1.35/0.30 — kicks in harder on medium moves
-        val smoothing = 1f - (1f - (baseSmoothing + boost)).pow(dt * 60f)
-        smoothBirdY += smoothing * (targetBirdY - smoothBirdY)
+        // Spring physics: gives natural acceleration into moves and smooth deceleration near target.
+        // stiffness controls how fast it responds, damping prevents oscillation/bounce.
+        // 2 * sqrt(stiffness) = critical damping ≈ 34.6 — using 36 = slightly overdamped = no bounce.
+        val stiffness = 300f
+        val damping = 36f
+        val displacement = targetBirdY - smoothBirdY
+        birdVelocityY += (displacement * stiffness - birdVelocityY * damping) * dt
+        smoothBirdY = (smoothBirdY + birdVelocityY * dt).coerceIn(0f, 1f)
     }
 
     private fun spawnPipe(screenWidth: Float, screenHeight: Float) {

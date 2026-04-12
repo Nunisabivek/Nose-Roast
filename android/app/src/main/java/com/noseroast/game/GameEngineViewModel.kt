@@ -34,12 +34,12 @@ class GameEngineViewModel : ViewModel(), FaceDetectionHelper.LandmarkerListener 
             val stabilizedY = when {
                 // Sub-pixel camera noise — discard
                 abs(delta) < 0.003f -> lastPublishedY
-                // Small intentional moves — smooth but responsive
-                abs(delta) < 0.04f  -> lastPublishedY + delta * 0.82f
-                // Medium moves — mostly direct with light smoothing
-                abs(delta) < 0.12f  -> lastPublishedY + delta * 0.92f
-                // Large fast moves — nearly direct, user is intentionally dodging
-                else                 -> lastPublishedY + delta * 0.97f
+                // Small intentional moves — smooth to reduce micro-jitter feeding spring
+                abs(delta) < 0.04f  -> lastPublishedY + delta * 0.75f
+                // Medium moves — moderate smoothing, spring handles the rest
+                abs(delta) < 0.12f  -> lastPublishedY + delta * 0.85f
+                // Large fast moves — responsive but not instant, spring gives natural decel
+                else                 -> lastPublishedY + delta * 0.92f
             }.coerceIn(0f, 1f)
 
             lastPublishedY = stabilizedY

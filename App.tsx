@@ -4,7 +4,12 @@ import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
 import { GameState, PipeData } from './types';
 import { GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS, CAMERA_CONFIG, FACE_DETECTION_CONFIG, GAME_LOOP_CONFIG } from './constants';
 import AdBlockDetector from './components/AdBlockDetector';
-import { RefreshCw, Play, Loader2, TrendingUp, ShieldCheck, Flame, CameraOff, Share2 } from 'lucide-react';
+import { RefreshCw, Play, Loader2, TrendingUp, ShieldCheck, Flame, CameraOff, Share2, Download } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+
+const IS_NATIVE = Capacitor.isNativePlatform();
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.noseroast.game';
+const PRIVACY_URL = '/privacy';
 import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -789,7 +794,7 @@ const App: React.FC = () => {
     <div className="w-screen h-screen bg-slate-950 p-0 font-inter overflow-hidden">
       <AdBlockDetector />
       <div className="relative w-full h-full bg-slate-900 overflow-hidden" style={{ width: '100vw', height: '100vh' }}>
-        {/* Video Background - High Quality */}
+        {/* Camera Feed - visible through the semi-transparent canvas */}
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-black">
           <video
             ref={videoRef}
@@ -798,12 +803,8 @@ const App: React.FC = () => {
             webkit-playsinline="true"
             muted
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            style={{
-              transform: 'scaleX(-1)', // Use style directly to prevent WebView render crash
-            }}
+            style={{ transform: 'scaleX(-1)' }}
           />
-          {/* Subtle overlay for game visibility */}
-          <div className="absolute inset-0 bg-slate-950/25" />
         </div>
 
         {/* Game Canvas - Native Performance Rendering */}
@@ -879,23 +880,38 @@ const App: React.FC = () => {
               {/* High Score */}
               {highScore > 0 && <div className="mt-3 flex items-center gap-2 text-white/40 text-xs font-medium"><TrendingUp size={14} /><span>Best Score: <span className="text-yellow-400 font-bold">{highScore}</span></span></div>}
 
-              {/* Footer */}
-              <div className="mt-4 flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 text-white/20 text-[9px] font-medium">
-                  <ShieldCheck size={12} /><span>Camera used for face tracking only</span>
+              {/* Footer nav */}
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-1.5 text-white/20 text-[9px] font-medium">
+                  <ShieldCheck size={11} /><span>Camera is used for face tracking only — never stored</span>
                 </div>
-                <button
-                  onClick={() => setShowPrivacy(true)}
-                  className="text-white/40 hover:text-white/80 text-[10px] underline transition-colors"
-                >
-                  Privacy Policy
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => IS_NATIVE ? setShowPrivacy(true) : window.open(PRIVACY_URL, '_blank')}
+                    className="text-white/35 hover:text-white/70 text-[10px] transition-colors"
+                  >
+                    Privacy Policy
+                  </button>
+                  {!IS_NATIVE && (
+                    <>
+                      <span className="text-white/15 text-[10px]">·</span>
+                      <a
+                        href={PLAY_STORE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-white/35 hover:text-emerald-400 text-[10px] transition-colors"
+                      >
+                        <Download size={10} />
+                        Android App
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* BOTTOM BANNER AD SPACE */}
-            <div className="w-full h-14 bg-slate-950/90 border-t border-white/5 flex-shrink-0">
-            </div>
+            {/* BOTTOM — native uses AdMob, web leaves space for the absolute-positioned AdSense banner */}
+            {IS_NATIVE && <div className="w-full h-14 bg-slate-950/90 border-t border-white/5 flex-shrink-0" />}
           </div>
         )}
 
@@ -977,8 +993,23 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* BOTTOM BANNER AD */}
-            <div className="w-full h-14 bg-slate-950/90 border-t border-white/5 flex items-center justify-center flex-shrink-0">
+            {/* BOTTOM — AdSense on web, empty space for AdMob on native */}
+            <div className="w-full bg-slate-950/90 border-t border-white/5 flex-shrink-0 flex flex-col items-center">
+              {!IS_NATIVE ? (
+                <>
+                  <span className="text-[8px] text-white/15 tracking-widest uppercase pt-0.5">Advertisement</span>
+                  <ins
+                    className="adsbygoogle"
+                    style={{ display: 'block', width: '100%', height: '50px' }}
+                    data-ad-client="ca-pub-4814181825408625"
+                    data-ad-slot="AUTO"
+                    data-ad-format="horizontal"
+                    data-full-width-responsive="true"
+                  />
+                </>
+              ) : (
+                <div className="h-14" />
+              )}
             </div>
           </div>
         )}
@@ -1038,10 +1069,20 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* BOTTOM AD BANNER */}
-        <div className="absolute bottom-0 inset-x-0 h-14 bg-slate-950 border-t border-white/5 flex flex-col items-center justify-center z-40">
-          <span className="text-[10px] text-white/20 font-sans tracking-widest uppercase mb-auto pt-1">Advertisement</span>
-        </div>
+        {/* BOTTOM AD BANNER — AdMob on native, AdSense on web */}
+        {!IS_NATIVE && (
+          <div className="absolute bottom-0 inset-x-0 bg-slate-950 border-t border-white/5 z-40 flex flex-col items-center">
+            <span className="text-[8px] text-white/15 font-sans tracking-widest uppercase pt-0.5">Advertisement</span>
+            <ins
+              className="adsbygoogle"
+              style={{ display: 'block', width: '100%', height: '50px' }}
+              data-ad-client="ca-pub-4814181825408625"
+              data-ad-slot="AUTO"
+              data-ad-format="horizontal"
+              data-full-width-responsive="true"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

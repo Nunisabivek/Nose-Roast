@@ -40,7 +40,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d', { alpha: false }); // No alpha for main canvas (performance)
+    const ctx = canvas.getContext('2d'); // alpha: true so camera feed shows through
     if (ctx) {
       ctxRef.current = ctx;
     }
@@ -49,7 +49,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     const offscreen = document.createElement('canvas');
     offscreen.width = width;
     offscreen.height = height;
-    const offCtx = offscreen.getContext('2d', { alpha: false });
+    const offCtx = offscreen.getContext('2d');
     if (offCtx) {
       offscreenCanvasRef.current = offscreen;
       offscreenCtxRef.current = offCtx;
@@ -214,8 +214,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
       const mainCtx = ctxRef.current;
       if (!ctx || !mainCtx) return;
 
-      // Clear offscreen canvas
-      ctx.fillStyle = '#0f172a'; // Slate-900 background
+      // Clear offscreen canvas — semi-transparent so camera feed shows through
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(2, 8, 28, 0.74)';
       ctx.fillRect(0, 0, width, height);
 
       // Draw all pipes
@@ -238,8 +239,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     clear: () => {
       const ctx = ctxRef.current;
       if (!ctx) return;
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
+      ctx.clearRect(0, 0, width, height);
     }
   }));
 

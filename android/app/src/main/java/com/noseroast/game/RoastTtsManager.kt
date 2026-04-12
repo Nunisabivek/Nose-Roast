@@ -1,7 +1,9 @@
 package com.noseroast.game
 
 import android.content.Context
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.util.Log
 import java.util.Locale
 
@@ -12,15 +14,17 @@ class RoastTtsManager(context: Context) {
     private var pendingRoast: String? = null
 
     init {
-        tts = TextToSpeech(context) { status ->
+        // Explicitly use Google TTS engine — sounds far more natural than system default
+        tts = TextToSpeech(context, { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val langResult = tts?.setLanguage(Locale.US)
                 if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Log.w("RoastTts", "US English not supported, using device default")
                 }
-                // Slightly elevated pitch = condescending. Normal rate = deliberate, not rushed.
-                tts?.setPitch(1.08f)
-                tts?.setSpeechRate(0.95f)
+                pickBestVoice()
+                // Neutral pitch sounds more human; slightly faster = confident, not monotone
+                tts?.setPitch(1.0f)
+                tts?.setSpeechRate(1.05f)
                 isReady = true
                 pendingRoast?.let {
                     speakInternal(it)
@@ -29,6 +33,24 @@ class RoastTtsManager(context: Context) {
             } else {
                 Log.e("RoastTts", "TTS init failed with status: $status")
             }
+        }, "com.google.android.tts")
+    }
+
+    /** Pick the highest-quality available en-US voice. Falls back gracefully if none found. */
+    private fun pickBestVoice() {
+        val engine = tts ?: return
+        val voices = engine.voices ?: return
+        val best = voices
+            .filter { v ->
+                !v.isNetworkConnectionRequired &&
+                v.locale.language == "en" &&
+                v.locale.country == "US" &&
+                v.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
+            }
+            .maxByOrNull { it.quality }
+        if (best != null) {
+            engine.voice = best
+            Log.d("RoastTts", "Using voice: ${best.name} quality=${best.quality}")
         }
     }
 
@@ -42,7 +64,10 @@ class RoastTtsManager(context: Context) {
     }
 
     private fun speakInternal(text: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "roast")
+        val params = Bundle().apply {
+            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
+        }
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "roast")
     }
 
     fun stop() {
