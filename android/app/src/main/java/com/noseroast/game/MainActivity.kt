@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 
@@ -97,7 +98,7 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(activeAdManager) {
-                activeAdManager?.attachBannerOverlay()
+                activeAdManager?.setupInlineBanner()
             }
 
             DisposableEffect(engine, faceHelper) {
@@ -202,13 +203,24 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Spacer(
+                // Banner ad — always visible below the game on every screen
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(78.dp)
                         .navigationBarsPadding()
-                        .background(Color(0xFF020617))
-                )
+                        .background(Color(0xFF020617)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val adMgr = activeAdManager
+                    if (adMgr != null) {
+                        AndroidView(
+                            factory = { adMgr.createBannerAdView() },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Spacer(Modifier.height(60.dp).fillMaxWidth())
+                    }
+                }
             }
         }
     }

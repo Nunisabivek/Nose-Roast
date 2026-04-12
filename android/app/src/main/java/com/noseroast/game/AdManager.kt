@@ -36,12 +36,31 @@ class AdManager(private val activity: Activity) {
     private var hasAttachedBanner = false
     private val bannerRetryRunnable = Runnable { loadBanner(force = true) }
 
-    private val bannerId = "ca-app-pub-4814181825408625/4014345081"
-    private val interstitialId = "ca-app-pub-4814181825408625/4469818263"
+    // Debug builds use Google's universal test ad unit IDs so ads always fill.
+    // Release builds use the real unit IDs.
+    private val bannerId = if (BuildConfig.DEBUG)
+        "ca-app-pub-3940256099942544/6300978111"
+    else
+        "ca-app-pub-4814181825408625/4014345081"
+
+    private val interstitialId = if (BuildConfig.DEBUG)
+        "ca-app-pub-3940256099942544/1033173712"
+    else
+        "ca-app-pub-4814181825408625/4469818263"
 
     init {
-        Log.d("NRAds", "Initializing MobileAds...")
+        Log.d("NRAds", "Initializing MobileAds... debug=${BuildConfig.DEBUG}")
         runCatching {
+            // Tell AdMob the device is a test device so it never throttles or blocks requests
+            if (BuildConfig.DEBUG) {
+                val config = com.google.android.gms.ads.RequestConfiguration.Builder()
+                    .setTestDeviceIds(listOf(
+                        com.google.android.gms.ads.AdRequest.DEVICE_ID_EMULATOR,
+                        "CHECKSUM" // replace with your device ID from logcat if needed
+                    ))
+                    .build()
+                MobileAds.setRequestConfiguration(config)
+            }
             MobileAds.initialize(activity) { initStatus ->
                 isInitialized = true
                 Log.d("NRAds", "MobileAds initialized: $initStatus")
@@ -310,6 +329,12 @@ class AdManager(private val activity: Activity) {
             loadInterstitial()
             onFinished()
         }
+    }
+
+    /** Call this when embedding the banner as an inline AndroidView (not as a root overlay). */
+    fun setupInlineBanner() {
+        hasAttachedBanner = true
+        loadBanner()
     }
 
     fun pauseBanner() {
