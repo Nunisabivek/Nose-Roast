@@ -64,8 +64,15 @@ class AdManager(private val activity: Activity) {
             MobileAds.initialize(activity) { initStatus ->
                 isInitialized = true
                 Log.d("NRAds", "MobileAds initialized: $initStatus")
-                loadBanner()
                 loadInterstitial()
+                // Banner view may not exist yet (AndroidView factory runs after this callback).
+                // Schedule a retry so we always catch up once the view is attached.
+                activity.window.decorView.post {
+                    loadBanner()
+                    if (bannerAdView == null || !isBannerLoaded) {
+                        scheduleBannerRetry(2000L)
+                    }
+                }
             }
         }.onFailure { error ->
             Log.e("NRAds", "MobileAds init failed: ${error.message}", error)
@@ -142,6 +149,7 @@ class AdManager(private val activity: Activity) {
             )
             container.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
                 override fun onViewAttachedToWindow(v: View) {
+                    hasAttachedBanner = true
                     loadBanner(force = true)
                 }
 

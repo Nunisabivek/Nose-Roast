@@ -29,18 +29,33 @@ import androidx.compose.ui.unit.sp
 // ─── START MENU ───
 @Composable
 fun StartMenu(onPlayClick: () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+    // Use animateFloatAsState instead of AnimatedVisibility so the button stays in the
+    // composition tree on frame 1 — AnimatedVisibility hides its content completely until
+    // visible=true, meaning the first tap always misses.
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val alpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(600),
+        label = "menuAlpha"
+    )
+    val offsetY by animateFloatAsState(
+        targetValue = if (entered) 0f else 60f,
+        animationSpec = tween(600),
+        label = "menuSlide"
+    )
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(600)) + slideInVertically(tween(600)) { it / 3 }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xCC0F172A))
+            .alpha(alpha),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xCC0F172A)),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.offset(y = offsetY.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Pulsing logo
                 val pulseScale by rememberInfiniteTransition(label = "pulse").animateFloat(
                     initialValue = 1f, targetValue = 1.08f,
@@ -91,7 +106,6 @@ fun StartMenu(onPlayClick: () -> Unit) {
                 }
             }
         }
-    }
 }
 
 // ─── SCORE HUD ───

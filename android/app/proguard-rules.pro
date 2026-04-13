@@ -6,6 +6,12 @@
 -keep class com.getcapacitor.** { *; }
 -keep class com.capacitorjs.** { *; }
 
+# Keep MediaPipe — uses JNI and reflection; stripping these breaks face tracking in release
+-keep class com.google.mediapipe.** { *; }
+-keep interface com.google.mediapipe.** { *; }
+-keepclassmembers class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+
 # Keep AdMob classes
 -keep class com.google.android.gms.ads.** { *; }
 -keep class com.google.ads.** { *; }

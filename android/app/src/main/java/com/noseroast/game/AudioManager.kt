@@ -156,7 +156,8 @@ class AudioManager(private val context: Context) {
     }
 
     fun playCrash() {
-        playOneShot(R.raw.crash, 1f)
+        // 0.4f so the roast TTS voice (which plays right after) is clearly audible over it
+        playOneShot(R.raw.crash, 0.4f)
     }
 
     fun startBgm() {
