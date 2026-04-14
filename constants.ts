@@ -33,8 +33,8 @@ export const CAMERA_CONFIG = {
 export const FACE_DETECTION_CONFIG = {
   // Run detection at ~30 FPS for much better battery and performance
   detectionIntervalMs: 33, // ~30 FPS
-  // Smooth interpolation factor (higher = smoother but more latency)
-  positionSmoothing: 0.35,
+  // Smooth interpolation factor (higher = more responsive, lower = smoother)
+  positionSmoothing: 0.65,
   // Nose landmark index in MediaPipe
   noseLandmarkIndex: 4,
   // Detection region of interest (crop to face area for speed)

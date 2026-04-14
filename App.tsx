@@ -343,19 +343,62 @@ const App: React.FC = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { gameDimensionsRef.current = gameDimensions; }, [gameDimensions]);
 
-  // Initialize AdMob
+  // Initialize AdMob (native only)
   useEffect(() => {
-    const initAds = async () => {
-      await AdMobService.initialize();
-      await AdMobService.showBanner();
-    };
-    initAds();
+    if (IS_NATIVE) {
+      const initAds = async () => {
+        // Small delay to ensure Capacitor is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await AdMobService.initialize();
+        // Wait a moment for banner to load
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await AdMobService.showBanner();
+      };
+      initAds();
+    }
   }, []);
+
+  // Activate AdSense banner ads on web (non-native)
+  useEffect(() => {
+    if (!IS_NATIVE && typeof window !== 'undefined') {
+      // Wait for AdSense script to load, then push ad requests
+      const timer = setTimeout(() => {
+        try {
+          (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+          // Push ad request for each ad slot (bottom banner + gameover)
+          (window as any).adsbygoogle.push({});
+          (window as any).adsbygoogle.push({});
+          console.log('✅ AdSense ad requests sent (2 slots)');
+        } catch (e) {
+          console.error('❌ AdSense push failed:', e);
+        }
+      }, 1000); // Wait 1 second for AdSense script to initialize
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Re-push AdSense ads when GAMEOVER screen shows (new ad slot appears)
+  useEffect(() => {
+    if (!IS_NATIVE && gameState === 'GAMEOVER' && typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        try {
+          (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+          (window as any).adsbygoogle.push({});
+          console.log('✅ AdSense gameover ad request sent');
+        } catch (e) {
+          console.error('❌ AdSense gameover push failed:', e);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState]);
 
   // Show banner ads on ALL screens including PLAYING for better monetization
   useEffect(() => {
-    // Always show banner ads for maximum revenue
-    AdMobService.showBanner();
+    if (IS_NATIVE) {
+      AdMobService.showBanner();
+    }
   }, [gameState]);
 
   // Load username
@@ -407,6 +450,26 @@ const App: React.FC = () => {
           minTrackingConfidence: 0.3,
         });
         landmarkerRef.current = faceLandmarker;
+
+        // Request camera access immediately after landmarker is ready
+        if (!videoRef.current) return;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: CAMERA_CONFIG.width,
+              height: CAMERA_CONFIG.height,
+              frameRate: CAMERA_CONFIG.frameRate,
+              facingMode: CAMERA_CONFIG.facingMode
+            }
+          });
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => videoRef.current?.play();
+          console.log('✅ Camera initialized successfully');
+        } catch (err) {
+          console.error('❌ Camera permission denied:', err);
+          setShowPermissionError(true);
+        }
+
         setGameState('START');
       } catch (error) {
         console.error("AI Initialization Failed:", error);
@@ -453,46 +516,49 @@ const App: React.FC = () => {
     // 1. Audio Interaction Unlock: Play sound IMMEDIATELY on click
     AudioManager.getInstance().unlock();
 
-    if (!videoRef.current) return;
-    setShowPermissionError(false);
-    try {
-      // HIGH QUALITY camera settings - matches native Android quality
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: CAMERA_CONFIG.width,
-          height: CAMERA_CONFIG.height,
-          frameRate: CAMERA_CONFIG.frameRate,
-          facingMode: CAMERA_CONFIG.facingMode
-        }
-      });
-      videoRef.current.srcObject = stream;
-      videoRef.current.onloadedmetadata = () => videoRef.current?.play();
-
-      // Reset game state first
-      resetGame();
-
-      // Start 3-2-1 countdown
-      setGameCountdown(3);
-      setGameState('COUNTDOWN');
-
-      let count = 3;
-      const countdownInterval = setInterval(() => {
-        count -= 1;
-        setGameCountdown(count);
-        if (count <= 0) {
-          clearInterval(countdownInterval);
-
-          // Reset timing refs to prevent immediate spawn of second pipe (overlapping issue)
-          gameStartTimeRef.current = performance.now();
-          lastPipeTimeRef.current = performance.now();
-
-          setGameState('PLAYING');
-          AudioManager.getInstance().playBGM();
-        }
-      }, 1000);
-    } catch (err) {
-      setShowPermissionError(true);
+    // Camera is already initialized on app load, just verify it's running
+    if (!videoRef.current || !videoRef.current.srcObject) {
+      // If camera somehow not running, try to restart
+      setShowPermissionError(false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: CAMERA_CONFIG.width,
+            height: CAMERA_CONFIG.height,
+            frameRate: CAMERA_CONFIG.frameRate,
+            facingMode: CAMERA_CONFIG.facingMode
+          }
+        });
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => videoRef.current?.play();
+      } catch (err) {
+        setShowPermissionError(true);
+        return;
+      }
     }
+
+    // Reset game state first
+    resetGame();
+
+    // Start 3-2-1 countdown with visual effects
+    setGameCountdown(3);
+    setGameState('COUNTDOWN');
+
+    let count = 3;
+    const countdownInterval = setInterval(() => {
+      count -= 1;
+      setGameCountdown(count);
+      if (count <= 0) {
+        clearInterval(countdownInterval);
+
+        // Reset timing refs to prevent immediate spawn of second pipe (overlapping issue)
+        gameStartTimeRef.current = performance.now();
+        lastPipeTimeRef.current = performance.now();
+
+        setGameState('PLAYING');
+        AudioManager.getInstance().playBGM();
+      }
+    }, 1000);
   };
 
   const handleGameOver = useCallback((reason: string) => {
@@ -800,8 +866,8 @@ const App: React.FC = () => {
             ref={videoRef}
             autoPlay
             playsInline
-            webkit-playsinline="true"
             muted
+            loop
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             style={{ transform: 'scaleX(-1)' }}
           />
@@ -935,26 +1001,34 @@ const App: React.FC = () => {
             {/* Semi-transparent overlay */}
             <div className="absolute inset-0 bg-slate-950/70" />
 
+            {/* Animated background glow */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-red-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+            </div>
+
             {/* Countdown content */}
             <div className="relative flex flex-col items-center justify-center">
-              {/* Big countdown number */}
+              {/* Big countdown number with glow */}
               <div className="relative">
-                <div className="text-[12rem] font-game text-white drop-shadow-2xl animate-pulse"
+                <div className="text-[12rem] font-game text-white drop-shadow-2xl glow-pulse countdown-pop"
                   style={{
-                    textShadow: '0 0 60px rgba(249, 115, 22, 0.8), 0 0 120px rgba(249, 115, 22, 0.4)',
-                    animation: 'pulse 0.5s ease-in-out'
+                    lineHeight: '1'
                   }}>
                   {gameCountdown > 0 ? gameCountdown : 'GO!'}
                 </div>
               </div>
 
               {/* Get ready text */}
-              <p className="text-2xl font-game text-orange-400 mt-4 uppercase tracking-[0.3em]">
+              <p className="text-3xl font-game text-orange-400 mt-6 uppercase tracking-[0.4em]"
+                style={{
+                  textShadow: '0 0 30px rgba(249, 115, 22, 0.6)'
+                }}>
                 {gameCountdown > 0 ? 'GET READY' : 'FLY!'}
               </p>
 
               {/* Tip */}
-              <p className="text-white/40 text-sm mt-8 max-w-xs text-center">
+              <p className="text-white/50 text-sm mt-10 max-w-xs text-center font-medium">
                 Move your nose up and down to control the bird
               </p>
             </div>

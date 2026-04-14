@@ -20,9 +20,13 @@ let isBannerShowing = false;
 
 export const AdMobService = {
     async initialize() {
-        if (isAdMobInitialized) return;
+        if (isAdMobInitialized) {
+            console.log('⚠️ AdMob already initialized');
+            return;
+        }
 
         try {
+            console.log('🔄 Initializing AdMob...');
             // Initialize AdMob
             // SETTINGS FOR 13+ AUDIENCE (Higher Revenue)
             await AdMob.initialize({
@@ -49,6 +53,10 @@ export const AdMobService = {
                 console.log('📺 Banner Ad Opened');
             });
 
+            AdMob.addListener(BannerAdPluginEvents.SizeChanged, (size) => {
+                console.log('📏 Banner Ad Size Changed:', JSON.stringify(size));
+            });
+
             // Add event listeners for debugging - Interstitial events
             AdMob.addListener(InterstitialAdPluginEvents.Loaded, () => {
                 console.log('✅ Interstitial Ad Loaded Successfully');
@@ -66,6 +74,11 @@ export const AdMobService = {
 
             AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
                 console.log('🔄 Interstitial Ad Dismissed - Preparing next ad');
+                isInterstitialReady = false;
+                // Pre-load the next interstitial automatically
+                setTimeout(() => {
+                    this.prepareInterstitial();
+                }, 1000);
             });
 
             // Pre-load the first interstitial
@@ -76,13 +89,23 @@ export const AdMobService = {
             await this.showBanner();
         } catch (e) {
             console.error('❌ AdMob init failed:', e);
+            isAdMobInitialized = false;
         }
     },
 
     async showBanner() {
+        if (!isAdMobInitialized) {
+            console.log('⚠️ AdMob not initialized yet, skipping banner');
+            return;
+        }
+
         if (isBannerShowing) {
-            console.log('Banner already showing, resuming...');
-            await this.resumeBanner();
+            console.log('✅ Banner already showing, resuming...');
+            try {
+                await AdMob.resumeBanner();
+            } catch (e) {
+                console.warn('⚠️ Resume banner failed:', e);
+            }
             return;
         }
 
@@ -93,38 +116,50 @@ export const AdMobService = {
                 adSize: BannerAdSize.BANNER,
                 position: BannerAdPosition.BOTTOM_CENTER,
                 margin: 0,
-                isTesting: false
+                isTesting: false  // Real ads for production
             };
             await AdMob.showBanner(options);
-            console.log('📢 Banner showBanner() called successfully');
+            isBannerShowing = true;
+            console.log('✅ Banner ad shown successfully');
         } catch (e) {
             console.error('❌ Show banner failed:', e);
+            isBannerShowing = false;
         }
     },
 
     async hideBanner() {
+        if (!isAdMobInitialized) return;
         try {
             await AdMob.hideBanner();
             isBannerShowing = false;
+            console.log('✅ Banner hidden');
         } catch (e) {
-            // Ignore if no banner exists
+            console.warn('⚠️ Hide banner failed:', e);
         }
     },
 
     async resumeBanner() {
+        if (!isAdMobInitialized) return;
         try {
             await AdMob.resumeBanner();
+            isBannerShowing = true;
+            console.log('✅ Banner resumed');
         } catch (e) {
-            // Ignore
+            console.warn('⚠️ Resume banner failed:', e);
         }
     },
 
     async prepareInterstitial() {
+        if (!isAdMobInitialized) {
+            console.log('⚠️ AdMob not initialized, skipping interstitial prep');
+            return;
+        }
+
         try {
             console.log('🔄 Preparing interstitial ad...');
             const options: AdOptions = {
                 adId: INTERSTITIAL_ID,
-                isTesting: false
+                isTesting: false  // Real ads for production
             };
             await AdMob.prepareInterstitial(options);
             isInterstitialReady = true;
@@ -136,30 +171,35 @@ export const AdMobService = {
     },
 
     async showInterstitial() {
+        if (!isAdMobInitialized) {
+            console.log('⚠️ AdMob not initialized, skipping interstitial');
+            return;
+        }
+
         try {
             // If not ready, try to prepare first
             if (!isInterstitialReady) {
                 console.log('⏳ Interstitial not ready, preparing now...');
                 await this.prepareInterstitial();
+                // Wait a bit for it to load
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             if (isInterstitialReady) {
                 console.log('📺 Showing interstitial ad...');
                 await AdMob.showInterstitial();
                 isInterstitialReady = false; // Mark as used
-
-                // Pre-load the next interstitial for future use
-                setTimeout(() => {
-                    this.prepareInterstitial();
-                }, 1000);
+                console.log('✅ Interstitial shown');
             } else {
-                console.log('⚠️ Interstitial still not ready after preparation');
+                console.log('⚠️ Interstitial not ready after preparation, skipping');
             }
         } catch (e) {
             console.error('❌ Show interstitial failed:', e);
             isInterstitialReady = false;
             // Try to prepare for next time
-            this.prepareInterstitial();
+            setTimeout(() => {
+                this.prepareInterstitial();
+            }, 1000);
         }
     }
 };

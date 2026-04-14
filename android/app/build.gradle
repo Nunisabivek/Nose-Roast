@@ -22,8 +22,8 @@ android {
         applicationId "com.noseroast.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20301
-        versionName "2.3.1"
+        versionCode 20401
+        versionName "2.4.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
