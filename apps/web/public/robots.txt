@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nose-roast.vercel.app/sitemap.xml

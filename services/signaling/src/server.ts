@@ -1,7 +1,7 @@
-const { PeerServer } = require('peer');
+import { PeerServer } from 'peer';
 
 // Railway automatically sets the PORT environment variable
-const port = process.env.PORT || 9000;
+const port = parseInt(process.env.PORT || '9000', 10);
 
 const server = PeerServer({
   port: port,

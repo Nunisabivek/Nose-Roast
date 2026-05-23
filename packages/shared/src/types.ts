@@ -1,4 +1,3 @@
-
 export type GameState = 'START' | 'PLAYING' | 'AD_INTERSTITIAL' | 'GAMEOVER' | 'LOADING' | 'COUNTDOWN';
 
 // Canvas-optimized pipe data (simplified for performance)

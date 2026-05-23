@@ -1,4 +1,3 @@
-
 import { GameConfig } from './types';
 
 export const GAME_CONFIG: GameConfig = {
@@ -54,5 +53,3 @@ export const ADSTERRA_CONFIG = {
   bannerHash: 'c4e5140d39bc15f8a0058b8f2762a4f6', // Placeholder hash: USER will replace this with their actual 728x90 banner hash
   sidebarHash: 'f69e6b45a0b9432f8b05da39b56f8a4e', // Placeholder hash: USER will replace this with their actual 160x600 skyscraper hash
 };
-
-

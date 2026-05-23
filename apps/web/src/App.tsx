@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
-import { GameState } from './types';
-import { GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS, CAMERA_CONFIG, FACE_DETECTION_CONFIG, GAME_LOOP_CONFIG, ADSTERRA_CONFIG } from './constants';
+import { GameState, GAME_CONFIG, INITIAL_BIRD_Y, DIFFICULTY_MAX_SPEED, DIFFICULTY_MIN_GAP, DIFFICULTY_RAMP_SECONDS, CAMERA_CONFIG, FACE_DETECTION_CONFIG, GAME_LOOP_CONFIG, ADSTERRA_CONFIG, PRE_ROASTS_WAITING, getRoastForScore, getCrashRoast, getDuoRoast } from '@noseroast/shared';
 import AdBlockDetector from './components/AdBlockDetector';
 import AdsterraAd from './components/AdsterraAd';
 import { RefreshCw, Play, Loader2, TrendingUp, ShieldCheck, Flame, CameraOff, Share2, Download, Copy, Check } from 'lucide-react';
@@ -30,83 +29,6 @@ const USE_CUSTOM_SIGNALING = false;
 const SIGNALING_HOST = 'your-signaling-app.up.railway.app'; // Change this to your deployed Railway domain!
 const SIGNALING_PORT = 443;
 const SIGNALING_PATH = '/noseroast';
-
-// Savage Solo Roasts
-const ROASTS_BEGINNER = [
-  "Your nose has the reaction time of a Windows Vista laptop. 💀",
-  "Bro played like their WiFi was connected to a microwave. Tragic.",
-  "That wasn't gaming, that was a public humiliation speedrun.",
-  "Even a brick with googly eyes would've scored higher. I'm not joking.",
-  "Your face said 'I got this' but your score said 'call 911.' 😭",
-  "The pipes took one look at you and went 'free real estate.'",
-  "This score belongs in a museum of human failure. Historic L.",
-  "You just speedran disappointment. Congrats on the world record. 🏆",
-];
-const ROASTS_LEARNING = [
-  "Score 3-7? So you're evolving... from terrible to just really bad. 📉",
-  "Your nose is buffering. Talent.exe not found. Abort? Y/N",
-  "This is giving 'main character who dies in episode 2' vibes.",
-  "You're mid. Aggressively, consistently, painfully mid.",
-  "The pipes are starting to wonder if you need a wellness check.",
-];
-const ROASTS_DECENT = [
-  "Score 8-15? Okay so you're not completely braindead. Just mostly. 🔥",
-  "Your nose went from 'disaster' to 'mild inconvenience.' Character development!",
-  "Double digits?! We're shocked. Genuinely. Still not impressed though.",
-  "This score is mid-tier. Peak mediocrity. Congrats? 📈",
-];
-const ROASTS_PRO = [
-  "Score 16+? Okay hotshot, don't let it go to your head. We've seen better. 🙄",
-  "You didn't break the game. You just got lucky. Don't quit your day job.",
-  "Those pipes are filing a complaint. For harassment. You're TOO tryhard.",
-  "Share this if you want. Nobody will care. But go off, king. 👑",
-];
-
-const PRE_ROASTS_WAITING = [
-  "Measuring your disappointment levels...",
-  "Consulting the roast council of elders...",
-  "Calculating your emotional damage...",
-  "AI is analyzing exactly where you went wrong... everywhere.",
-];
-
-const CRASH_ROASTS = [
-  "BONK! 💥 Your face just met its soulmate: failure.",
-  "Ouch! That pipe didn't even acknowledge your existence.",
-  "WASTED. Your nose coordination just uninstalled itself.",
-  "Crash landing! Your pilot license was fake anyway.",
-  "The pipe won. Your dignity is in the morgue. RIP.",
-];
-
-// Savage Duo Roasts for 1v1 Multi duels
-const DUO_ROASTS = [
-  "Player 1 absolutely carried, Player 2 played like a blind pigeon. 💀",
-  "Both of you play like your noses are connected to dial-up internet.",
-  "That wasn't a battle, it was a synchronized speedrun of failure.",
-  "Winner gets bragging rights, loser gets a nose-coordination tutorial. Tragic.",
-  "I've seen better flying coordination from a couple of falling bricks. 🧱",
-  "A single toddler sitting on the spacebar would outscore both of you combined.",
-  "Congrats to the winner, but remember: you're just the king of the trash heap.",
-  "You both hit the pipes like you had a magnet in your noses.",
-  "Player 2's nose went on a permanent strike. Player 1 barely survived.",
-  "Your ancestors survived centuries of evolution for this epic double-fail.",
-];
-
-const getRoastForScore = (score: number): string => {
-  let roastPool: string[];
-  if (score <= 2) roastPool = ROASTS_BEGINNER;
-  else if (score <= 7) roastPool = ROASTS_LEARNING;
-  else if (score <= 15) roastPool = ROASTS_DECENT;
-  else roastPool = ROASTS_PRO;
-  return roastPool[Math.floor(Math.random() * roastPool.length)];
-};
-
-const getCrashRoast = (): string => {
-  return CRASH_ROASTS[Math.floor(Math.random() * CRASH_ROASTS.length)];
-};
-
-const getDuoRoast = (p1: number, p2: number): string => {
-  return DUO_ROASTS[Math.floor(Math.random() * DUO_ROASTS.length)];
-};
 
 interface InternalPipeState {
   id: number;
