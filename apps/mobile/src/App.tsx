@@ -470,10 +470,35 @@ const App: React.FC = () => {
         } catch (e) { /* ignore */ }
       }
 
-      // Smooth local bird interpolation
-      const smoothing = FACE_DETECTION_CONFIG.positionSmoothing;
-      const newY = birdYRef.current + (targetBirdYRef.current - birdYRef.current) * smoothing;
-      birdRotationRef.current = (newY - birdYRef.current) * 2.5;
+      // Ultra-smooth, highly responsive time-corrected adaptive interpolation
+      const distance = targetBirdYRef.current - birdYRef.current;
+      const absDist = Math.abs(distance);
+      
+      // Dynamic speed coefficient: small distance -> rock-solid stable, large distance -> snappy dodge
+      const minSpeedCoeff = 6.5;
+      const maxSpeedCoeff = 20.0;
+      
+      // Ramping based on distance (normalized to 120 pixels of maximum displacement range)
+      const distRatio = Math.min(1.0, absDist / 120.0);
+      const adaptiveCoeff = minSpeedCoeff + (maxSpeedCoeff - minSpeedCoeff) * Math.pow(distRatio, 1.5);
+      
+      // Calculate time-corrected lerp factor (exp decay ensures same physical speed across 30, 60, 120+ Hz)
+      const lerpFactor = 1 - Math.exp(-adaptiveCoeff * deltaSeconds);
+      const newY = birdYRef.current + distance * lerpFactor;
+      
+      // Smooth, inertia-based rotation that responds organically to physics
+      const velocity = deltaSeconds > 0 ? (newY - birdYRef.current) / deltaSeconds : 0;
+      const maxPhysSpeed = 700; // max reference velocity in pixels/sec
+      const clampedVelocity = Math.max(-maxPhysSpeed, Math.min(maxPhysSpeed, velocity));
+      
+      // Going up -> point up (up to -28 deg). Going down -> dive down (up to 55 deg)
+      const targetRotation = (clampedVelocity / maxPhysSpeed) * (clampedVelocity < 0 ? 28 : 55);
+      
+      // Smoothly interpolate rotation using a time-corrected factor to prevent angular jitter
+      const rotationCoeff = 10.0;
+      const rotationLerp = 1 - Math.exp(-rotationCoeff * deltaSeconds);
+      
+      birdRotationRef.current = birdRotationRef.current + (targetRotation - birdRotationRef.current) * rotationLerp;
       birdYRef.current = newY;
     }
 

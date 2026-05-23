@@ -26,14 +26,16 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
     return (
         <div
             ref={ref}
+            className="animate-roast-card"
             style={{
-                width: '320px',
-                background: 'linear-gradient(180deg, rgba(20, 28, 48, 0.98) 0%, rgba(10, 15, 30, 0.99) 100%)',
+                width: '355px',
+                background: 'linear-gradient(180deg, rgba(20, 28, 48, 0.99) 0%, rgba(10, 15, 30, 1) 100%)',
                 borderRadius: '28px',
                 overflow: 'hidden',
                 fontFamily: 'Inter, sans-serif',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: `0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px ${scoreLevel === 'legend' ? 'rgba(234, 179, 8, 0.12)' : scoreLevel === 'skilled' ? 'rgba(249, 115, 22, 0.12)' : scoreLevel === 'rising' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(6, 182, 212, 0.12)'}`,
+                border: '1.5px solid rgba(255, 255, 255, 0.12)',
+                boxShadow: `0 25px 60px rgba(0, 0, 0, 0.75), 0 0 45px ${scoreLevel === 'legend' ? 'rgba(234, 179, 8, 0.22)' : scoreLevel === 'skilled' ? 'rgba(249, 115, 22, 0.22)' : scoreLevel === 'rising' ? 'rgba(168, 85, 247, 0.22)' : 'rgba(6, 182, 212, 0.22)'}`,
+                transition: 'all 0.3s ease',
             }}
         >
             {/* Top Gradient Bar */}

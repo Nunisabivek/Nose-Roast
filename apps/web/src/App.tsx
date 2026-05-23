@@ -893,18 +893,44 @@ const App: React.FC = () => {
         } catch (e) { /* ignore */ }
       }
 
-      // Smooth local bird interpolation
-      const smoothing = FACE_DETECTION_CONFIG.positionSmoothing;
-      const newY = birdYRef.current + (targetBirdYRef.current - birdYRef.current) * smoothing;
-      birdRotationRef.current = (newY - birdYRef.current) * 2.5;
+      // Ultra-smooth, highly responsive time-corrected adaptive interpolation
+      const distance = targetBirdYRef.current - birdYRef.current;
+      const absDist = Math.abs(distance);
+      
+      // Dynamic speed coefficient: small distance -> rock-solid stable, large distance -> snappy dodge
+      const minSpeedCoeff = 6.5;
+      const maxSpeedCoeff = 20.0;
+      
+      // Ramping based on distance (normalized to 120 pixels of maximum displacement range)
+      const distRatio = Math.min(1.0, absDist / 120.0);
+      const adaptiveCoeff = minSpeedCoeff + (maxSpeedCoeff - minSpeedCoeff) * Math.pow(distRatio, 1.5);
+      
+      // Calculate time-corrected lerp factor (exp decay ensures same physical speed across 30, 60, 120+ Hz)
+      const lerpFactor = 1 - Math.exp(-adaptiveCoeff * deltaSeconds);
+      const newY = birdYRef.current + distance * lerpFactor;
+      
+      // Smooth, inertia-based rotation that responds organically to physics
+      const velocity = deltaSeconds > 0 ? (newY - birdYRef.current) / deltaSeconds : 0;
+      const maxPhysSpeed = 700; // max reference velocity in pixels/sec
+      const clampedVelocity = Math.max(-maxPhysSpeed, Math.min(maxPhysSpeed, velocity));
+      
+      // Going up -> point up (up to -28 deg). Going down -> dive down (up to 55 deg)
+      const targetRotation = (clampedVelocity / maxPhysSpeed) * (clampedVelocity < 0 ? 28 : 55);
+      
+      // Smoothly interpolate rotation using a time-corrected factor to prevent angular jitter
+      const rotationCoeff = 10.0;
+      const rotationLerp = 1 - Math.exp(-rotationCoeff * deltaSeconds);
+      
+      birdRotationRef.current = birdRotationRef.current + (targetRotation - birdRotationRef.current) * rotationLerp;
       birdYRef.current = newY;
     }
 
     // Smooth remote opponent bird interpolation (Duo Mode)
     if (gameMode === 'DUO' && !isOpponentDeadRef.current) {
-      const remoteSmoothing = 0.25; // responsive smoothing for data channel stream
-      const rY = bird2YRef.current + (targetBird2YRef.current - bird2YRef.current) * remoteSmoothing;
-      bird2YRef.current = rY;
+      // Time-corrected exponential decay for remote player
+      const remoteCoeff = 12.0; 
+      const remoteLerp = 1 - Math.exp(-remoteCoeff * deltaSeconds);
+      bird2YRef.current = bird2YRef.current + (targetBird2YRef.current - bird2YRef.current) * remoteLerp;
     }
 
     // Broadcast our local coordinates to opponent (DUO Mode) - Normalize coordinates for different screen heights
@@ -1783,7 +1809,7 @@ const App: React.FC = () => {
                     </div>
 
                     {/* RoastCard */}
-                    <div className="flex-shrink-0" style={{ transform: 'scale(0.85)', transformOrigin: 'center center' }}>
+                    <div className="flex-shrink-0" style={{ transform: 'scale(1.0)', transformOrigin: 'center center' }}>
                       <RoastCard score={score} highScore={highScore} roast={commentary} username={username} ref={cardRef} />
                     </div>
                   </>
@@ -1804,15 +1830,27 @@ const App: React.FC = () => {
                   )}
 
                   {gameMode === 'SOLO' && (
-                    <button onClick={shareRoast} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 py-3 px-6 rounded-full text-base font-game transition-all transform active:scale-95 shadow-xl shadow-indigo-500/30">
-                      {isSharing ? <Loader2 className="animate-spin" size={18} /> : <><Share2 size={16} /><span>SHARE ROAST</span></>}
-                    </button>
+                    <>
+                      <button onClick={shareRoast} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 py-3 px-6 rounded-full text-base font-game transition-all transform active:scale-95 shadow-xl shadow-indigo-500/30">
+                        {isSharing ? <Loader2 className="animate-spin" size={18} /> : <><Share2 size={16} /><span>SHARE ROAST</span></>}
+                      </button>
+                      <button
+                        onClick={() => {
+                          resetGame();
+                          setGameState('START');
+                        }}
+                        className="w-full py-3 bg-slate-900/60 hover:bg-slate-850 rounded-full font-game text-[11px] font-black tracking-widest text-white/70 border border-white/5 flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md"
+                      >
+                        🚪 LOBBY MENU
+                      </button>
+                    </>
                   )}
 
                   {gameMode === 'DUO' && (
                     <button
                       onClick={() => {
-                        // Reset to solo and disconnect peer
+                        // Reset and disconnect peer cleanly
+                        resetGame();
                         if (peerRef.current) {
                           peerRef.current.destroy();
                           peerRef.current = null;
