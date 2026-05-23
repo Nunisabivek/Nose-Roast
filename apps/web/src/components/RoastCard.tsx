@@ -23,6 +23,9 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
     const config = levelConfig[scoreLevel];
     const displayName = username?.trim() || 'Player';
 
+    const activeBorderColor = scoreLevel === 'legend' ? '#facc15' : scoreLevel === 'skilled' ? '#f97316' : scoreLevel === 'rising' ? '#a855f7' : '#06b6d4';
+    const activeGlow = scoreLevel === 'legend' ? 'rgba(234, 179, 8, 0.38)' : scoreLevel === 'skilled' ? 'rgba(249, 115, 22, 0.38)' : scoreLevel === 'rising' ? 'rgba(168, 85, 247, 0.38)' : 'rgba(6, 182, 212, 0.38)';
+
     return (
         <div
             ref={ref}
@@ -33,8 +36,8 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                 borderRadius: '28px',
                 overflow: 'hidden',
                 fontFamily: 'Inter, sans-serif',
-                border: '1.5px solid rgba(255, 255, 255, 0.12)',
-                boxShadow: `0 25px 60px rgba(0, 0, 0, 0.75), 0 0 45px ${scoreLevel === 'legend' ? 'rgba(234, 179, 8, 0.22)' : scoreLevel === 'skilled' ? 'rgba(249, 115, 22, 0.22)' : scoreLevel === 'rising' ? 'rgba(168, 85, 247, 0.22)' : 'rgba(6, 182, 212, 0.22)'}`,
+                border: `2px solid ${activeBorderColor}`,
+                boxShadow: `0 25px 60px rgba(0, 0, 0, 0.85), 0 0 50px ${activeGlow}`,
                 transition: 'all 0.3s ease',
             }}
         >
@@ -86,14 +89,14 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
 
                 {/* Score Card */}
                 <div style={{
-                    background: 'rgba(5, 8, 16, 0.8)',
+                    background: 'rgba(5, 8, 16, 0.88)',
                     borderRadius: '20px',
                     padding: '24px',
                     textAlign: 'center',
                     marginBottom: '16px',
                     position: 'relative',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    boxShadow: 'inset 0 4px 20px rgba(0, 0, 0, 0.4)'
+                    border: `1.5px solid ${scoreLevel === 'legend' ? 'rgba(250,204,21,0.3)' : scoreLevel === 'skilled' ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                    boxShadow: `inset 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 25px ${activeGlow}`
                 }}>
                     {isNewRecord && (
                         <div style={{

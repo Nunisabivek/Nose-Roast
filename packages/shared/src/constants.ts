@@ -5,14 +5,14 @@ export const GAME_CONFIG: GameConfig = {
   height: 600,
   pipeWidth: 70,
   pipeGap: 220, // Good starting gap
-  pipeSpeed: 5.0, // Faster starting speed for instant action
+  pipeSpeed: 5.8, // Faster starting speed for instant high-stakes action
   birdWidth: 44,
   birdHeight: 36,
 };
 
-export const DIFFICULTY_MAX_SPEED = 9.0; // Max speed at hardest difficulty
-export const DIFFICULTY_MIN_GAP = 140; // Minimum gap - never smaller than this!
-export const DIFFICULTY_RAMP_SECONDS = 30; // Ramps to max difficulty in 30 seconds!
+export const DIFFICULTY_MAX_SPEED = 10.5; // Max speed at hardest difficulty
+export const DIFFICULTY_MIN_GAP = 135; // Minimum gap - tighter for skilled players!
+export const DIFFICULTY_RAMP_SECONDS = 25; // Ramps to max difficulty in 25 seconds for rapid challenge!
 
 export const INITIAL_BIRD_Y = 300;
 

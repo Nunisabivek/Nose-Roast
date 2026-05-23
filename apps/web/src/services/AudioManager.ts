@@ -118,7 +118,7 @@ export class AudioManager {
             if (name === 'crash') {
                 // Keep crash volume extremely quiet so Speech TTS is overwhelmingly louder and dominant
                 const crashGain = this.audioContext.createGain();
-                crashGain.gain.value = 0.05; // Overpowered by system Speech TTS
+                crashGain.gain.value = 0.008; // Super quiet, allowing Speech TTS to take complete focus
                 source.connect(crashGain);
                 crashGain.connect(this.masterGain);
             } else {

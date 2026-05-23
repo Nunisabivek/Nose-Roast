@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [username, setUsername] = useState<string>('');
   const [isSharing, setIsSharing] = useState(false);
   const [fps, setFps] = useState(0);
+  const [scoreAlert, setScoreAlert] = useState<{ text: string; key: number } | null>(null);
 
   // --- ONLINE WEBRTC STATES ---
   const [gameMode, setGameMode] = useState<'SOLO' | 'DUO'>('SOLO');
@@ -245,8 +246,8 @@ const App: React.FC = () => {
         utterance.rate = rateVal;  
         utterance.pitch = pitchVal; 
 
-        // Duck background audio extremely low (to 5%) so the speech is clearly the louder/dominant sound!
-        AudioManager.getInstance().setMasterVolume(0.05);
+        // Duck background audio extremely low (to 1%) so the speech is clearly the louder/dominant sound!
+        AudioManager.getInstance().setMasterVolume(0.01);
 
         let volumeRestored = false;
         const restoreVolume = () => {
@@ -407,7 +408,7 @@ const App: React.FC = () => {
 
     pipesRef.current = [];
 
-    lastPipeTimeRef.current = performance.now();
+    lastPipeTimeRef.current = performance.now() - 1100; // First pipe spawns earlier (500ms after game start)
     gameStartTimeRef.current = performance.now();
     setCommentary('');
     speedRef.current = GAME_CONFIG.pipeSpeed;
@@ -642,7 +643,7 @@ const App: React.FC = () => {
         clearInterval(countdownInterval);
 
         gameStartTimeRef.current = performance.now();
-        lastPipeTimeRef.current = performance.now();
+        lastPipeTimeRef.current = performance.now() - 1100; // First pipe spawns earlier (500ms after game start)
 
         setGameState('PLAYING');
         AudioManager.getInstance().playBGM();
@@ -811,7 +812,7 @@ const App: React.FC = () => {
       if (count <= 0) {
         clearInterval(countdownInterval);
         gameStartTimeRef.current = performance.now();
-        lastPipeTimeRef.current = performance.now();
+        lastPipeTimeRef.current = performance.now() - 1100; // First pipe spawns earlier (500ms after game start)
         setGameState('PLAYING');
         AudioManager.getInstance().playBGM();
       }
@@ -1077,8 +1078,19 @@ const App: React.FC = () => {
 
     if (passOccurred > 0) {
       scoreRef.current += passOccurred;
-      setScore(scoreRef.current);
+      const newScore = scoreRef.current;
+      setScore(newScore);
       AudioManager.getInstance().playSound('score');
+
+      // Awesome milestone alerts to juice the progression!
+      let alertText = `+1`;
+      if (newScore === 3) alertText = "RISING STAR! 🐣";
+      else if (newScore === 7) alertText = "ON FIRE! ⚡";
+      else if (newScore === 12) alertText = "Savage Combo! 🔥";
+      else if (newScore === 18) alertText = "LEGENDARY! 👑";
+      else if (newScore === 25) alertText = "NOSE ROAST GOD! 👃";
+
+      setScoreAlert({ text: alertText, key: Date.now() });
     }
 
     // Boundary check
@@ -1239,6 +1251,22 @@ const App: React.FC = () => {
             height={gameDimensions.height}
             pipeWidth={GAME_CONFIG.pipeWidth}
           />
+
+          {/* Floating score alert milestone pops */}
+          {scoreAlert && (
+            <div
+              key={scoreAlert.key}
+              className="absolute pointer-events-none z-50 animate-score-alert text-center font-game font-black uppercase tracking-wider text-gradient-orange"
+              style={{
+                left: gameMode === 'SOLO' ? '50%' : '25%',
+                top: '30%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: gameMode === 'SOLO' ? '28px' : '18px',
+              }}
+            >
+              {scoreAlert.text}
+            </div>
+          )}
 
           {/* FPS Debug Counter */}
           {process.env.NODE_ENV === 'development' && (

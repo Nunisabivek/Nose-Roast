@@ -139,14 +139,69 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     rotation: number,
     xPos: number,
     bodyColor: string = '#facc15',
-    wingColor: string = '#ca8a04'
+    wingColor: string = '#ca8a04',
+    score: number = 0
   ) => {
-    ctx.save();
-
-    // Translate to bird center for rotation
     const centerX = xPos + BIRD_WIDTH / 2;
     const centerY = y + BIRD_HEIGHT / 2;
 
+    // Render floating crown upright above the bird if score is Legendary (score > 15)
+    if (score > 15) {
+      ctx.save();
+      const floatOffset = Math.sin(Date.now() / 150) * 3;
+      ctx.fillStyle = '#fbbf24'; // amber-400
+      ctx.shadowColor = '#f59e0b'; // amber-500
+      ctx.shadowBlur = 12;
+      
+      const crownX = centerX - 10;
+      const crownY = y - 18 + floatOffset;
+      
+      ctx.beginPath();
+      ctx.moveTo(crownX, crownY + 8);
+      ctx.lineTo(crownX - 4, crownY);
+      ctx.lineTo(crownX + 3, crownY + 5);
+      ctx.lineTo(crownX + 10, crownY - 4); // Center tip
+      ctx.lineTo(crownX + 17, crownY + 5);
+      ctx.lineTo(crownX + 24, crownY);
+      ctx.lineTo(crownX + 20, crownY + 8);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.strokeStyle = '#d97706'; // amber-600 border
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Neon glowing aura ring when on fire or legendary
+    if (score >= 3) {
+      ctx.save();
+      let glowColor = '#a855f7'; // Purple for rising star
+      let pulseGlow = 10 + Math.sin(Date.now() / 100) * 4;
+      
+      if (score >= 15) {
+        glowColor = '#fbbf24'; // Gold for legend
+        pulseGlow = 18 + Math.sin(Date.now() / 80) * 6;
+      } else if (score >= 8) {
+        glowColor = '#f97316'; // Orange for fire
+        pulseGlow = 14 + Math.sin(Date.now() / 90) * 5;
+      }
+      
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = pulseGlow;
+      
+      // Draw outer glowing halo ring
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = score >= 15 ? 3 : 1.5;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, BIRD_WIDTH / 2 + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.save();
+
+    // Translate to bird center for rotation
     ctx.translate(centerX, centerY);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.translate(-centerX, -centerY);
@@ -364,7 +419,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
         }
 
         // Draw bird
-        drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#facc15', '#ca8a04');
+        drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#facc15', '#ca8a04', p1.score);
 
         // Draw score
         drawScore(ctx, p1.score, highScore);
@@ -391,7 +446,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
 
         // P1 bird (Red bird)
         if (!p1.isDead) {
-          drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#ef4444', '#b91c1c');
+          drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#ef4444', '#b91c1c', p1.score);
         } else {
           drawRoastedText(ctx, 0, halfWidth, height);
         }
@@ -421,7 +476,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
 
         // P2 bird (Blue bird)
         if (!p2.isDead) {
-          drawBird(ctx, p2.birdY, p2.birdRotation, halfWidth + BIRD_X, '#3b82f6', '#1d4ed8');
+          drawBird(ctx, p2.birdY, p2.birdRotation, halfWidth + BIRD_X, '#3b82f6', '#1d4ed8', p2.score);
         } else {
           drawRoastedText(ctx, halfWidth, halfWidth, height);
         }
