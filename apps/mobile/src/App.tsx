@@ -137,20 +137,20 @@ const App: React.FC = () => {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         const voices = window.speechSynthesis.getVoices();
         
-        // Define personality metrics based on chosen voice profile
+        // Define personality metrics based on chosen voice profile for premium clear tone
         let pitchVal = 0.95;
         let rateVal = 1.05;
         
         if (roastVoiceProfile === 'hype') {
-          pitchVal = 1.15;
-          rateVal = 1.22;
+          pitchVal = 1.08;
+          rateVal = 1.10;
         } else if (roastVoiceProfile === 'deadpan') {
-          pitchVal = 0.90;
-          rateVal = 0.86;
+          pitchVal = 0.95;
+          rateVal = 0.95;
         } else {
           // sarcastic
-          pitchVal = 0.82;
-          rateVal = 0.98;
+          pitchVal = 0.92;
+          rateVal = 1.02;
         }
 
         // Find the absolute best matching natural English voice for the personality
@@ -183,14 +183,15 @@ const App: React.FC = () => {
         utterance.rate = rateVal;  
         utterance.pitch = pitchVal; 
 
-        // Duck background audio extremely low so the speech is clearly the louder/dominant sound!
-        AudioManager.getInstance().setMasterVolume(0.01);
+        // Duck background music extremely low (to 1%) so the speech is clearly the louder/dominant sound!
+        // We duck BGM rather than Master Volume so key SFX (like the crash sound) are not muted/ducked.
+        AudioManager.getInstance().setBGMVolume(0.01);
 
         let volumeRestored = false;
         const restoreVolume = () => {
           if (!volumeRestored) {
             volumeRestored = true;
-            AudioManager.getInstance().setMasterVolume(1.0); // Restore fully
+            AudioManager.getInstance().setBGMVolume(0.5); // Restore BGM volume fully
           }
         };
 

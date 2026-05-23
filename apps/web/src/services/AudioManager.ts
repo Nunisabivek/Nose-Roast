@@ -103,6 +103,12 @@ export class AudioManager {
         }
     }
 
+    public setBGMVolume(volume: number) {
+        if (this.bgmGain && this.audioContext) {
+            this.bgmGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        }
+    }
+
     public playSound(name: 'flap' | 'crash' | 'score') {
         if (this.isMuted || !this.audioContext || !this.buffers.has(name) || !this.masterGain) return;
 
@@ -116,9 +122,9 @@ export class AudioManager {
             source.buffer = this.buffers.get(name)!;
             
             if (name === 'crash') {
-                // Keep crash volume extremely quiet so Speech TTS is overwhelmingly louder and dominant
+                // Keep crash volume satisfyingly audible (not muted), while keeping the savage AI TTS roast voice loud
                 const crashGain = this.audioContext.createGain();
-                crashGain.gain.value = 0.008; // Super quiet, allowing Speech TTS to take complete focus
+                crashGain.gain.value = 0.75; 
                 source.connect(crashGain);
                 crashGain.connect(this.masterGain);
             } else {

@@ -200,20 +200,20 @@ const App: React.FC = () => {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         const voices = window.speechSynthesis.getVoices();
         
-        // Define personality metrics based on chosen voice profile
+        // Define personality metrics based on chosen voice profile for premium clear tone
         let pitchVal = 0.95;
         let rateVal = 1.05;
         
         if (roastVoiceProfile === 'hype') {
-          pitchVal = 1.15;
-          rateVal = 1.22;
+          pitchVal = 1.08;
+          rateVal = 1.10;
         } else if (roastVoiceProfile === 'deadpan') {
-          pitchVal = 0.90;
-          rateVal = 0.86;
+          pitchVal = 0.95;
+          rateVal = 0.95;
         } else {
           // sarcastic
-          pitchVal = 0.82;
-          rateVal = 0.98;
+          pitchVal = 0.92;
+          rateVal = 1.02;
         }
 
         // Find the absolute best matching natural English voice for the personality
@@ -246,14 +246,15 @@ const App: React.FC = () => {
         utterance.rate = rateVal;  
         utterance.pitch = pitchVal; 
 
-        // Duck background audio extremely low (to 1%) so the speech is clearly the louder/dominant sound!
-        AudioManager.getInstance().setMasterVolume(0.01);
+        // Duck background music extremely low (to 1%) so the speech is clearly the louder/dominant sound!
+        // We duck BGM rather than Master Volume so key SFX (like the crash sound) are not muted/ducked.
+        AudioManager.getInstance().setBGMVolume(0.01);
 
         let volumeRestored = false;
         const restoreVolume = () => {
           if (!volumeRestored) {
             volumeRestored = true;
-            AudioManager.getInstance().setMasterVolume(1.0); // Restore fully
+            AudioManager.getInstance().setBGMVolume(0.5); // Restore BGM volume fully
           }
         };
 
@@ -1668,18 +1669,20 @@ const App: React.FC = () => {
               <div className="absolute inset-0 bg-slate-950/75" />
               
               {/* Calibration crosshair target overlay to direct streamer gaze */}
-              <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-white/10 rounded-full flex items-center justify-center pulse-ring-glow z-10">
-                <div className="w-40 h-40 border border-orange-500/30 rounded-full calibration-reticle flex items-center justify-center">
-                  <div className="w-full h-[1px] bg-orange-500/20 absolute" />
-                  <div className="h-full w-[1px] bg-orange-500/20 absolute" />
-                  <div className="w-24 h-24 border border-orange-500/40 rounded-full flex items-center justify-center">
-                    <div className="w-12 h-12 border-2 border-orange-500/60 rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_12px_rgba(249,115,22,0.85)]" />
+              <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                <div className="w-48 h-48 border border-white/10 rounded-full flex items-center justify-center pulse-ring-glow">
+                  <div className="w-40 h-40 border border-orange-500/30 rounded-full calibration-reticle flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-orange-500/20 absolute" />
+                    <div className="h-full w-[1px] bg-orange-500/20 absolute" />
+                    <div className="w-24 h-24 border border-orange-500/40 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 border-2 border-orange-500/60 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_12px_rgba(249,115,22,0.85)]" />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="absolute top-full mt-4 text-[8px] font-game text-orange-400 tracking-[0.25em] bg-slate-950/80 border border-orange-500/20 px-3.5 py-1.5 rounded-full uppercase shadow-lg">
-                  Align nose to target
+                  <div className="absolute top-full mt-4 text-[8px] font-game text-orange-400 tracking-[0.25em] bg-slate-950/80 border border-orange-500/20 px-3.5 py-1.5 rounded-full uppercase shadow-lg whitespace-nowrap">
+                    Align nose to target
+                  </div>
                 </div>
               </div>
 
