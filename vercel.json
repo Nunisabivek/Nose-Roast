@@ -1,5 +1,10 @@
 {
+  "buildCommand": "npm run build -w @noseroast/web",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "npm install",
+  "framework": null,
   "rewrites": [
-    { "source": "/privacy", "destination": "/privacy.html" }
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
