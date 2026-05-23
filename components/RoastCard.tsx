@@ -28,10 +28,12 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
             ref={ref}
             style={{
                 width: '320px',
-                background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-                borderRadius: '24px',
+                background: 'linear-gradient(180deg, rgba(20, 28, 48, 0.98) 0%, rgba(10, 15, 30, 0.99) 100%)',
+                borderRadius: '28px',
                 overflow: 'hidden',
                 fontFamily: 'Inter, sans-serif',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: `0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px ${scoreLevel === 'legend' ? 'rgba(234, 179, 8, 0.12)' : scoreLevel === 'skilled' ? 'rgba(249, 115, 22, 0.12)' : scoreLevel === 'rising' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(6, 182, 212, 0.12)'}`,
             }}
         >
             {/* Top Gradient Bar */}
@@ -49,12 +51,12 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                         width: '48px',
                         height: '48px',
                         borderRadius: '50%',
-                        background: '#334155',
+                        background: 'rgba(255, 255, 255, 0.05)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: '12px',
-                        border: '2px solid rgba(255,255,255,0.1)'
+                        border: '1.5px solid rgba(255,255,255,0.1)'
                     }}>
                         <span style={{ fontSize: '20px' }}>👤</span>
                     </div>
@@ -63,7 +65,8 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                             color: 'white',
                             fontSize: '18px',
                             fontWeight: 'bold',
-                            margin: '0 0 4px 0'
+                            margin: '0 0 4px 0',
+                            letterSpacing: '-0.3px'
                         }}>{displayName}</p>
                         <div style={{
                             display: 'inline-flex',
@@ -81,13 +84,14 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
 
                 {/* Score Card */}
                 <div style={{
-                    background: '#0f172a',
+                    background: 'rgba(5, 8, 16, 0.8)',
                     borderRadius: '20px',
                     padding: '24px',
                     textAlign: 'center',
                     marginBottom: '16px',
                     position: 'relative',
-                    border: '1px solid rgba(255,255,255,0.05)'
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: 'inset 0 4px 20px rgba(0, 0, 0, 0.4)'
                 }}>
                     {isNewRecord && (
                         <div style={{
@@ -104,6 +108,7 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                             fontWeight: '800',
                             padding: '5px 12px',
                             borderRadius: '20px',
+                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
                         }}>
                             <Trophy size={12} /> NEW RECORD!
                         </div>
@@ -117,7 +122,7 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                         fontFamily: "'Fredoka One', cursive, sans-serif"
                     }}>{score}</p>
                     <p style={{
-                        color: 'rgba(255,255,255,0.4)',
+                        color: 'rgba(255,255,255,0.3)',
                         fontSize: '11px',
                         fontWeight: '800',
                         letterSpacing: '3px',
@@ -127,11 +132,12 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
 
                 {/* Roast Quote */}
                 <div style={{
-                    background: 'rgba(15,23,42,0.6)',
+                    background: 'rgba(255,255,255,0.03)',
                     borderRadius: '16px',
                     padding: '16px 20px',
                     marginBottom: '16px',
-                    border: '1px solid rgba(255,255,255,0.05)'
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)'
                 }}>
                     <p style={{
                         color: 'white',
@@ -139,7 +145,8 @@ const RoastCard = forwardRef<HTMLDivElement, RoastCardProps>(({ score, highScore
                         fontStyle: 'italic',
                         textAlign: 'center',
                         margin: '0',
-                        lineHeight: '1.5'
+                        lineHeight: '1.5',
+                        fontWeight: '500'
                     }}>
                         "{roast}"
                     </p>

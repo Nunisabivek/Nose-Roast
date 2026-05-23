@@ -97,6 +97,12 @@ export class AudioManager {
         }
     }
 
+    public setMasterVolume(volume: number) {
+        if (this.masterGain && this.audioContext) {
+            this.masterGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        }
+    }
+
     public playSound(name: 'flap' | 'crash' | 'score') {
         if (this.isMuted || !this.audioContext || !this.buffers.has(name) || !this.masterGain) return;
 
@@ -108,7 +114,17 @@ export class AudioManager {
 
             const source = this.audioContext.createBufferSource();
             source.buffer = this.buffers.get(name)!;
-            source.connect(this.masterGain);
+            
+            if (name === 'crash') {
+                // Keep crash volume extremely quiet so Speech TTS is overwhelmingly louder and dominant
+                const crashGain = this.audioContext.createGain();
+                crashGain.gain.value = 0.05; // Overpowered by system Speech TTS
+                source.connect(crashGain);
+                crashGain.connect(this.masterGain);
+            } else {
+                source.connect(this.masterGain);
+            }
+            
             source.start(0);
         } catch (e) {
             console.error(`Error playing ${name}`, e);

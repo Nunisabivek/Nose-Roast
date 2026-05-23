@@ -300,7 +300,54 @@
     }
     footer p { color: var(--muted); font-size: 0.8rem; }
     footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--accent); }
+    .play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 0.5rem 1.1rem;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+      margin-top: 1.25rem;
+      text-align: left;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .play-btn:hover {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(34, 197, 94, 0.15);
+    }
+    .play-btn svg {
+      width: 20px;
+      height: 20px;
+      color: #22c55e;
+      transition: transform 0.2s;
+    }
+    .play-btn:hover svg {
+      transform: scale(1.1);
+    }
+    .play-btn-text p:first-child {
+      font-size: 0.45rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.5);
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.1rem;
+    }
+    .play-btn-text p:last-child {
+      font-size: 0.75rem;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .play-btn:hover .play-btn-text p:last-child {
+      color: #22c55e;
+    }
 
     @media (max-width: 480px) {
       .hero { padding: 2.5rem 1.25rem 2rem; }
@@ -330,6 +377,17 @@
     <div class="updated-tag">
       <span class="dot"></span>
       Last updated: January 10, 2026
+    </div>
+    <div>
+      <a href="https://play.google.com/store/apps/details?id=com.noseroast.game" target="_blank" rel="noopener noreferrer" class="play-btn">
+        <svg viewBox="0 0 512 512" fill="currentColor">
+          <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58 33.1-60.7-60.7 60.1-60.1 58.6 33.6c18.7 10.7 24.7 33.6 14.1 52.3-3.4 6-8.1 10.8-14.1 11.8zM325.3 277.7l60.1 60.1L104.6 499l220.7-221.3z"/>
+        </svg>
+        <div class="play-btn-text">
+          <p>Get it on</p>
+          <p>Google Play</p>
+        </div>
+      </a>
     </div>
   </section>
 
@@ -374,6 +432,16 @@
         <li>We do <strong>not</strong> record, store, or transmit any images or video</li>
         <li>We do <strong>not</strong> perform facial recognition or store face prints</li>
         <li>We do <strong>not</strong> share any camera data with third parties</li>
+      </ul>
+
+      <div class="card card-blue" style="margin-top: 1.5rem;">
+        <p>⚔️ &nbsp;<strong>1v1 Online Duel Matchmaking (WebRTC P2P):</strong></p>
+        <p style="margin-top:0.4rem; font-size:0.875rem; color:var(--text)">When playing in Online Duel mode, your camera stream and gameplay coordinates are transmitted <strong>directly between you and your opponent</strong> using secure Peer-to-Peer (WebRTC) technology.</p>
+      </div>
+      <ul class="bullet-list" style="margin-top:1rem">
+        <li><strong>Direct Stream:</strong> Video feeds are strictly direct (P2P) and never routed through or stored on any intermediate server.</li>
+        <li><strong>Signaling Security:</strong> Our private signaling server (hosted securely on Railway) only brokers the initial handshake connection (matching room codes) and is completely incapable of intercepting or viewing your live stream.</li>
+        <li><strong>Zero Recording:</strong> Gameplay video feeds are purely real-time and are never recorded, cached, or permanently saved.</li>
       </ul>
     </section>
 
@@ -450,9 +518,20 @@
     <div class="footer-inner">
       <div class="footer-logo">👃 Nose Roast</div>
       <p>© 2026 Nose Roast. All rights reserved.</p>
+      <div style="margin: 0.75rem 0 1rem 0;">
+        <a href="https://play.google.com/store/apps/details?id=com.noseroast.game" target="_blank" rel="noopener noreferrer" class="play-btn" style="margin-top: 0;">
+          <svg viewBox="0 0 512 512" fill="currentColor">
+            <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58 33.1-60.7-60.7 60.1-60.1 58.6 33.6c18.7 10.7 24.7 33.6 14.1 52.3-3.4 6-8.1 10.8-14.1 11.8zM325.3 277.7l60.1 60.1L104.6 499l220.7-221.3z"/>
+          </svg>
+          <div class="play-btn-text">
+            <p>Get it on</p>
+            <p>Google Play</p>
+          </div>
+        </a>
+      </div>
       <p style="margin-top:0.3rem">
         <a href="/">Play Game</a> &nbsp;·&nbsp;
-        <a href="/privacy">Privacy Policy</a>
+        <a href="/privacy.html">Privacy Policy</a>
       </p>
     </div>
   </footer>

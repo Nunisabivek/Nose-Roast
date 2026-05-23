@@ -1,4 +1,3 @@
-
 import React, { forwardRef, useImperativeHandle, useRef, useEffect, memo } from 'react';
 
 export interface PipeData {
@@ -12,8 +11,21 @@ export interface PipeData {
   moveRange: number;
 }
 
+export interface PlayerRenderData {
+  birdY: number;
+  birdRotation: number;
+  score: number;
+  isDead: boolean;
+}
+
 export interface GameCanvasHandle {
-  render: (birdY: number, birdRotation: number, pipes: PipeData[], score: number, highScore: number) => void;
+  render: (
+    mode: 'SOLO' | 'DUO',
+    p1: PlayerRenderData,
+    p2: PlayerRenderData,
+    pipes: PipeData[],
+    highScore: number
+  ) => void;
   clear: () => void;
 }
 
@@ -40,7 +52,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d'); // alpha: true so camera feed shows through
+    const ctx = canvas.getContext('2d');
     if (ctx) {
       ctxRef.current = ctx;
     }
@@ -121,11 +133,18 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     }
   };
 
-  const drawBird = (ctx: CanvasRenderingContext2D, y: number, rotation: number) => {
+  const drawBird = (
+    ctx: CanvasRenderingContext2D,
+    y: number,
+    rotation: number,
+    xPos: number,
+    bodyColor: string = '#facc15',
+    wingColor: string = '#ca8a04'
+  ) => {
     ctx.save();
 
     // Translate to bird center for rotation
-    const centerX = BIRD_X + BIRD_WIDTH / 2;
+    const centerX = xPos + BIRD_WIDTH / 2;
     const centerY = y + BIRD_HEIGHT / 2;
 
     ctx.translate(centerX, centerY);
@@ -139,7 +158,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     ctx.fill();
 
     // Body
-    ctx.fillStyle = '#facc15'; // Yellow-400
+    ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.ellipse(centerX, centerY, BIRD_WIDTH / 2 - 2, BIRD_HEIGHT / 2 - 2, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -150,9 +169,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     ctx.stroke();
 
     // Wing
-    ctx.fillStyle = '#ca8a04'; // Yellow-600
+    ctx.fillStyle = wingColor;
     ctx.beginPath();
-    ctx.ellipse(BIRD_X + 8, centerY + 6, 10, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(xPos + 8, centerY + 6, 10, 8, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#020617';
     ctx.lineWidth = 3;
@@ -161,7 +180,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     // Eye (white part)
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(BIRD_X + BIRD_WIDTH - 10, y + 10, 8, 0, Math.PI * 2);
+    ctx.arc(xPos + BIRD_WIDTH - 10, y + 10, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#020617';
     ctx.lineWidth = 3;
@@ -170,15 +189,15 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     // Pupil
     ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.arc(BIRD_X + BIRD_WIDTH - 6, y + 10, 3, 0, Math.PI * 2);
+    ctx.arc(xPos + BIRD_WIDTH - 6, y + 10, 3, 0, Math.PI * 2);
     ctx.fill();
 
     // Beak
     ctx.fillStyle = '#f97316'; // Orange-500
     ctx.beginPath();
-    ctx.moveTo(BIRD_X + BIRD_WIDTH - 2, centerY);
-    ctx.lineTo(BIRD_X + BIRD_WIDTH + 12, centerY + 4);
-    ctx.lineTo(BIRD_X + BIRD_WIDTH - 2, centerY + 8);
+    ctx.moveTo(xPos + BIRD_WIDTH - 2, centerY);
+    ctx.lineTo(xPos + BIRD_WIDTH + 12, centerY + 4);
+    ctx.lineTo(xPos + BIRD_WIDTH - 2, centerY + 8);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#020617';
@@ -202,37 +221,222 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
 
     // Score number
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px "Fredoka One", sans-serif';
+    ctx.font = 'bold 48px "Bungee", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(score.toString(), width / 2, 50);
   };
 
+  const drawDuoScore = (ctx: CanvasRenderingContext2D, score: number, xCenter: number) => {
+    // Score background
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(xCenter - 50, 20, 100, 50, 25);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Score number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px "Bungee", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(score.toString(), xCenter, 45);
+  };
+
+  const drawStatusBadge = (ctx: CanvasRenderingContext2D, isDead: boolean, xCenter: number, label: string) => {
+    // 1. Draw Player Label (e.g. "YOU" or "OPPONENT")
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = 'bold 11px "Bungee", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, xCenter, 13);
+
+    // 2. Draw Status capsule background
+    const badgeWidth = 100;
+    const badgeHeight = 22;
+    const badgeY = 78;
+    ctx.fillStyle = isDead ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+    ctx.beginPath();
+    ctx.roundRect(xCenter - badgeWidth / 2, badgeY, badgeWidth, badgeHeight, 11);
+    ctx.fill();
+
+    ctx.strokeStyle = isDead ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 3. Draw Status Text
+    ctx.fillStyle = isDead ? '#ef4444' : '#10b981';
+    ctx.font = 'bold 10px "Bungee", sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isDead ? '💀 CRASHED' : '⚡ FLYING', xCenter, badgeY + badgeHeight / 2);
+  };
+
+  const drawRoastedText = (ctx: CanvasRenderingContext2D, xOffset: number, halfWidth: number, screenHeight: number) => {
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.2)'; // Dark red overlay
+    ctx.fillRect(xOffset, 0, halfWidth, screenHeight);
+
+    ctx.save();
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 20;
+
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 44px "Bungee", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ROASTED! 💀', xOffset + halfWidth / 2, screenHeight / 2);
+
+    ctx.restore();
+  };
+
+  const drawDivider = (ctx: CanvasRenderingContext2D, screenWidth: number, screenHeight: number) => {
+    const x = screenWidth / 2;
+
+    ctx.save();
+
+    // Draw neon divider glow
+    ctx.strokeStyle = '#f97316'; // Neon orange
+    ctx.lineWidth = 8;
+    ctx.shadowColor = '#f97316';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, screenHeight);
+    ctx.stroke();
+
+    // Inner bright white core line
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, screenHeight);
+    ctx.stroke();
+
+    // Draw "VS" badge in the center
+    const badgeY = screenHeight / 2;
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 4;
+
+    ctx.beginPath();
+    ctx.arc(x, badgeY, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // VS text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px "Bungee", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', x, badgeY);
+
+    ctx.restore();
+  };
+
   useImperativeHandle(ref, () => ({
-    render: (birdY: number, birdRotation: number, pipes: PipeData[], score: number, highScore: number) => {
+    render: (
+      mode: 'SOLO' | 'DUO',
+      p1: PlayerRenderData,
+      p2: PlayerRenderData,
+      pipes: PipeData[],
+      highScore: number
+    ) => {
       const ctx = offscreenCtxRef.current;
       const mainCtx = ctxRef.current;
       if (!ctx || !mainCtx) return;
 
-      // Clear offscreen canvas — semi-transparent so camera feed shows through
+      // Clear offscreen canvas — transparent so camera feed shows through
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = 'rgba(2, 8, 28, 0.74)';
-      ctx.fillRect(0, 0, width, height);
 
-      // Draw all pipes
-      for (const pipe of pipes) {
-        if (pipe.x > -pipeWidth && pipe.x < width) {
-          drawPipe(ctx, pipe, height);
+      if (mode === 'SOLO') {
+        // --- SOLO RENDER ---
+        ctx.fillStyle = 'rgba(2, 8, 28, 0.15)';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw all pipes
+        for (const pipe of pipes) {
+          if (pipe.x > -pipeWidth && pipe.x < width) {
+            drawPipe(ctx, pipe, height);
+          }
         }
+
+        // Draw bird
+        drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#facc15', '#ca8a04');
+
+        // Draw score
+        drawScore(ctx, p1.score, highScore);
+      } else {
+        // --- DUO RENDER (P2P Split Screen) ---
+        const halfWidth = width / 2;
+
+        // 1. Draw Player 1 (Left Column)
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, halfWidth, height);
+        ctx.clip();
+
+        // Dark slate overlay for P1
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.15)';
+        ctx.fillRect(0, 0, halfWidth, height);
+
+        // P1 obstacles (relative coordinates)
+        for (const pipe of pipes) {
+          if (pipe.x > -pipeWidth && pipe.x < halfWidth) {
+            drawPipe(ctx, pipe, height);
+          }
+        }
+
+        // P1 bird (Red bird)
+        if (!p1.isDead) {
+          drawBird(ctx, p1.birdY, p1.birdRotation, BIRD_X, '#ef4444', '#b91c1c');
+        } else {
+          drawRoastedText(ctx, 0, halfWidth, height);
+        }
+
+        // P1 score and status badge
+        drawDuoScore(ctx, p1.score, halfWidth / 2);
+        drawStatusBadge(ctx, p1.isDead, halfWidth / 2, 'YOU');
+        ctx.restore();
+
+        // 2. Draw Player 2 (Right Column)
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(halfWidth, 0, halfWidth, height);
+        ctx.clip();
+
+        // Dark deep blue overlay for P2
+        ctx.fillStyle = 'rgba(8, 15, 38, 0.15)';
+        ctx.fillRect(halfWidth, 0, halfWidth, height);
+
+        // P2 obstacles (translated coordinates)
+        for (const pipe of pipes) {
+          const translatedPipe = { ...pipe, x: pipe.x + halfWidth };
+          if (translatedPipe.x > halfWidth - pipeWidth && translatedPipe.x < width) {
+            drawPipe(ctx, translatedPipe, height);
+          }
+        }
+
+        // P2 bird (Blue bird)
+        if (!p2.isDead) {
+          drawBird(ctx, p2.birdY, p2.birdRotation, halfWidth + BIRD_X, '#3b82f6', '#1d4ed8');
+        } else {
+          drawRoastedText(ctx, halfWidth, halfWidth, height);
+        }
+
+        // P2 score and status badge
+        drawDuoScore(ctx, p2.score, halfWidth + halfWidth / 2);
+        drawStatusBadge(ctx, p2.isDead, halfWidth + halfWidth / 2, 'CHALLENGER');
+        ctx.restore();
+
+        // 3. Draw Neon Divider VS badge
+        drawDivider(ctx, width, height);
       }
 
-      // Draw bird
-      drawBird(ctx, birdY, birdRotation);
-
-      // Draw score
-      drawScore(ctx, score, highScore);
-
       // Copy to main canvas (double buffer)
+      mainCtx.clearRect(0, 0, width, height);
       mainCtx.drawImage(offscreenCanvasRef.current!, 0, 0);
     },
 
