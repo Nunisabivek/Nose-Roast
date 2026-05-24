@@ -83,6 +83,7 @@ const App: React.FC = () => {
   const lastSpeedUpdateRef = useRef<number>(0);
 
   // Local player physics refs
+  const lastCountdownRef = useRef<number>(-1);
   const birdYRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight / 2 - GAME_CONFIG.birdHeight / 2 : 300);
   const targetBirdYRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight / 2 - GAME_CONFIG.birdHeight / 2 : 300);
   const birdRotationRef = useRef<number>(0);
@@ -249,8 +250,8 @@ const App: React.FC = () => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
-              width: CAMERA_CONFIG.width,
-              height: CAMERA_CONFIG.height,
+              width: { ideal: 640 },
+              height: { ideal: 480 },
               frameRate: CAMERA_CONFIG.frameRate,
               facingMode: CAMERA_CONFIG.facingMode
             }
@@ -343,26 +344,12 @@ const App: React.FC = () => {
     canvasRef.current?.clear();
   }, []);
 
-  const startCountdownFlow = () => {
+  const startCountdownFlow = (countdownMs: number = 3000) => {
     resetGame();
-
+    lastCountdownRef.current = -1;
+    gameStartTimeRef.current = performance.now() + countdownMs;
     setGameCountdown(3);
     setGameState('COUNTDOWN');
-
-    let count = 3;
-    const countdownInterval = setInterval(() => {
-      count -= 1;
-      setGameCountdown(count);
-      if (count <= 0) {
-        clearInterval(countdownInterval);
-
-        gameStartTimeRef.current = performance.now();
-        lastPipeTimeRef.current = performance.now() - 1100; // First pipe spawns earlier (500ms after game start)
-
-        setGameState('PLAYING');
-        AudioManager.getInstance().playBGM();
-      }
-    }, 1000);
   };
 
   const handleGameOver = useCallback((reason: string) => {
@@ -437,15 +424,34 @@ const App: React.FC = () => {
     const progress = Math.min(1, elapsedSeconds / DIFFICULTY_RAMP_SECONDS);
     speedRef.current = GAME_CONFIG.pipeSpeed + (DIFFICULTY_MAX_SPEED - GAME_CONFIG.pipeSpeed) * progress;
     gapRef.current = GAME_CONFIG.pipeGap - (GAME_CONFIG.pipeGap - DIFFICULTY_MIN_GAP) * progress;
-
     if (currentTime - lastSpeedUpdateRef.current > 250) {
       lastSpeedUpdateRef.current = currentTime;
       setCurrentSpeed(speedRef.current);
     }
 
+    // Handle countdown phase dynamically in requestAnimationFrame for driftless high-precision countdown
+    if (gameStateRef.current === 'COUNTDOWN') {
+      const remainingMs = gameStartTimeRef.current - currentTime;
+      const count = Math.ceil(remainingMs / 1000);
+      if (count > 0 && count <= 3) {
+        if (count !== lastCountdownRef.current) {
+          lastCountdownRef.current = count;
+          setGameCountdown(count);
+        }
+      }
+      
+      if (remainingMs <= 0) {
+        gameStartTimeRef.current = currentTime; // Align start time precisely with current frame time!
+        lastPipeTimeRef.current = currentTime - 1100; // First pipe spawns earlier (500ms after game start)
+        gameStateRef.current = 'PLAYING'; // Instant ref update for immediate physics initialization!
+        setGameState('PLAYING');
+        AudioManager.getInstance().playBGM();
+      }
+    }
+
     // --- FACE TRACKING (Nose Y Position calculation) ---
     if (videoRef.current && landmarkerRef.current && videoRef.current.readyState >= 2) {
-      if (currentTime - lastProcessTimeRef.current > FACE_DETECTION_CONFIG.detectionIntervalMs) {
+      if (currentTime - lastProcessTimeRef.current > 40) {
         lastProcessTimeRef.current = currentTime;
         try {
           const results = landmarkerRef.current.detectForVideo(videoRef.current, currentTime);
@@ -495,7 +501,6 @@ const App: React.FC = () => {
       
       // Going up -> point up (up to -28 deg). Going down -> dive down (up to 55 deg)
       const targetRotation = (clampedVelocity / maxPhysSpeed) * (clampedVelocity < 0 ? 28 : 55);
-      
       // Smoothly interpolate rotation using a time-corrected factor to prevent angular jitter
       const rotationCoeff = 10.0;
       const rotationLerp = 1 - Math.exp(-rotationCoeff * deltaSeconds);
@@ -504,8 +509,8 @@ const App: React.FC = () => {
       birdYRef.current = newY;
     }
 
-    // Stop physics update during countdown, but keep drawing
     if (!isGameRunning) {
+      // Stop physics update during countdown, but keep drawing
       const p1Data: PlayerRenderData = { birdY: birdYRef.current, birdRotation: birdRotationRef.current, score: scoreRef.current, isDead: isLocalDeadRef.current };
       canvasRef.current?.render('SOLO', p1Data, p1Data, pipesRef.current, highScore);
       return;
@@ -764,26 +769,26 @@ const App: React.FC = () => {
                 <div className="my-auto w-full max-w-sm flex flex-col items-center flex-shrink-0 relative">
 
                   {/* Logo Section */}
-                  <div className="relative mb-3 animate-float">
-                    <div className="w-28 h-28 bg-gradient-to-br from-orange-500 via-red-500 to-indigo-500 rounded-[2.2rem] p-1 shadow-2xl shadow-orange-500/30">
-                      <div className="w-full h-full bg-slate-950 rounded-[2rem] flex items-center justify-center overflow-hidden">
+                  <div className="relative mb-1.5 sm:mb-3 animate-float">
+                    <div className="w-14 h-14 sm:w-28 sm:h-28 bg-gradient-to-br from-orange-500 via-red-500 to-indigo-500 rounded-[1.1rem] sm:rounded-[2.2rem] p-1 shadow-2xl shadow-orange-500/30">
+                      <div className="w-full h-full bg-slate-950 rounded-[0.95rem] sm:rounded-[2rem] flex items-center justify-center overflow-hidden">
                         <img src="/logo.png" alt="Nose Roast" className="w-[110%] h-[110%] object-contain" />
                       </div>
                     </div>
                   </div>
 
                   {/* Title */}
-                  <h1 className="text-4xl font-game text-white tracking-tight leading-none mb-1 drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
+                  <h1 className="text-2xl sm:text-4xl font-game text-white tracking-tight leading-none mb-0.5 sm:mb-1 drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
                     NOSE<span className="text-gradient-orange">ROAST</span>
                   </h1>
-                  <p className="text-white/95 text-[11px] uppercase font-extrabold tracking-[0.16em] mb-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Fly with your face • Live Gaming</p>
+                  <p className="text-white/95 text-[9px] sm:text-[11px] uppercase font-extrabold tracking-[0.16em] mb-2 sm:mb-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Fly with your face • Live Gaming</p>
 
                   {/* Glass Main UI Container */}
-                  <div className="w-full max-w-sm p-6 glass-panel rounded-3xl relative overflow-hidden shadow-2xl flex flex-col items-center flex-shrink-0">
+                  <div className="w-full max-w-sm p-3.5 sm:p-6 glass-panel rounded-2xl sm:rounded-3xl relative overflow-hidden shadow-2xl flex flex-col items-center flex-shrink-0">
                     
                     {/* Username Input */}
-                    <div className="w-full mb-4 relative">
-                      <p className="text-white/90 text-[11px] uppercase tracking-[0.15em] mb-2 font-black text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">Your Name</p>
+                    <div className="w-full mb-2.5 sm:mb-4 relative">
+                      <p className="text-white/90 text-[9px] sm:text-[11px] uppercase tracking-[0.15em] mb-1 sm:mb-2 font-black text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">Your Name</p>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">👃</span>
                         <input
@@ -792,14 +797,14 @@ const App: React.FC = () => {
                           onChange={(e) => handleUsernameChange(e.target.value)}
                           placeholder="Enter your name..."
                           maxLength={15}
-                          className="genz-input w-full bg-slate-950/45 border border-white/10 rounded-full pl-10 pr-5 py-2 text-white text-center text-sm font-extrabold focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.25)] transition-all placeholder-white/50"
+                          className="genz-input w-full bg-slate-950/45 border border-white/10 rounded-full pl-10 pr-5 py-1.5 sm:py-2 text-white text-center text-xs sm:text-sm font-extrabold focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.25)] transition-all placeholder-white/50"
                         />
                       </div>
                     </div>
 
                     {/* Roastmaster Voice Personality Selector */}
-                    <div className="w-full mb-5">
-                      <p className="text-white/90 text-[11px] uppercase tracking-[0.15em] mb-2 font-black text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">🔊 Roastmaster Voice Tone</p>
+                    <div className="w-full mb-3 sm:mb-5">
+                      <p className="text-white/90 text-[9px] sm:text-[11px] uppercase tracking-[0.15em] mb-1 sm:mb-2 font-black text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">🔊 Roastmaster Voice Tone</p>
                       <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950/40 border border-white/8 rounded-2xl">
                         <button
                           onClick={() => {
@@ -845,26 +850,26 @@ const App: React.FC = () => {
 
                     {/* Launch Play Trigger */}
                     <button
-                      onClick={startCountdownFlow}
+                      onClick={() => startCountdownFlow()}
                       disabled={!username.trim()}
-                      className="w-full py-3.5 bg-gradient-to-r from-orange-500 via-red-500 to-indigo-600 rounded-full font-game text-xs font-black tracking-widest text-white shadow-xl shadow-red-500/25 hover:shadow-red-500/40 focus:outline-none flex items-center justify-center gap-2 hover:scale-[1.03] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                      className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-orange-500 via-red-500 to-indigo-600 rounded-full font-game text-[11px] sm:text-xs font-black tracking-widest text-white shadow-xl shadow-red-500/25 hover:shadow-red-500/40 focus:outline-none flex items-center justify-center gap-2 hover:scale-[1.03] transition-all disabled:opacity-50 disabled:pointer-events-none"
                     >
-                      <Play size={14} fill="currentColor" /> START SOLO GAME
+                      <Play size={12} fill="currentColor" /> START SOLO GAME
                     </button>
                   </div>
 
                   {/* Personal Best Highscore Indicator */}
                   {highScore > 0 && (
-                    <div className="mt-4 px-5 py-2 bg-slate-950/70 border border-white/5 rounded-full flex items-center gap-2 shadow-md">
-                      <span className="text-[10px] font-game text-amber-400">🏆 PERSONAL BEST</span>
-                      <span className="font-game text-xs font-black text-white">{highScore}</span>
+                    <div className="mt-3 px-4 py-1.5 bg-slate-950/70 border border-white/5 rounded-full flex items-center gap-1.5 shadow-md">
+                      <span className="text-[9px] font-game text-amber-400">🏆 PERSONAL BEST</span>
+                      <span className="font-game text-[11px] font-black text-white">{highScore}</span>
                     </div>
                   )}
 
                   {/* Privacy Policy Link */}
                   <button
                     onClick={() => setShowPrivacy(true)}
-                    className="mt-6 text-[10px] text-white/40 font-game tracking-widest hover:text-white/60 transition-colors"
+                    className="mt-4 text-[9px] text-white/40 font-game tracking-widest hover:text-white/60 transition-colors"
                   >
                     PRIVACY POLICY
                   </button>
@@ -920,7 +925,7 @@ const App: React.FC = () => {
                 {/* Main Action Buttons */}
                 <div className="flex flex-col gap-3 w-full">
                   <button
-                    onClick={startCountdownFlow}
+                    onClick={() => startCountdownFlow()}
                     className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-full font-game text-xs font-black tracking-widest text-white shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     <RefreshCw size={14} /> PLAY AGAIN
