@@ -18,9 +18,9 @@ export const INITIAL_BIRD_Y = 300;
 
 // Camera quality settings - High quality for display, optimized for detection
 export const CAMERA_CONFIG = {
-  // High resolution for video display without strict minimums to avoid device locks
-  width: { ideal: 1280 },
-  height: { ideal: 720 },
+  // Enforce high-definition capture while remaining extremely compatible across mobile and older webcams
+  width: { min: 640, ideal: 1920 },
+  height: { min: 480, ideal: 1080 },
   frameRate: { ideal: 60, max: 120 }, // High refresh rate camera feed
   facingMode: 'user' as const,
   // Processing resolution (lower for face detection performance)

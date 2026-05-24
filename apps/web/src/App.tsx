@@ -43,6 +43,37 @@ interface InternalPipeState {
   moveRange: number;
 }
 
+// Boost stream quality dynamically over WebRTC by raising maxBitrate to 4 Mbps for HD resolution
+const boostStreamQuality = (pc: RTCPeerConnection) => {
+  if (!pc) return;
+  const applyBoost = () => {
+    try {
+      const senders = pc.getSenders();
+      for (const sender of senders) {
+        if (sender.track && sender.track.kind === 'video') {
+          const params = sender.getParameters();
+          if (!params.encodings) params.encodings = [{}];
+          // Enforce a premium 4 Mbps maximum bitrate for sharp high-definition video capture
+          params.encodings[0].maxBitrate = 4000000;
+          sender.setParameters(params)
+            .then(() => console.log("🚀 WebRTC Video Bitrate boosted to 4Mbps for HD Stream quality!"))
+            .catch(err => console.warn("⚠️ Failed to set maxBitrate on track:", err));
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ Error boosting video quality:", e);
+    }
+  };
+
+  // Apply immediately and on iceconnectionstatechange to guarantee application after renegotiation
+  applyBoost();
+  pc.addEventListener('iceconnectionstatechange', () => {
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      setTimeout(applyBoost, 1000);
+    }
+  });
+};
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('LOADING');
   const [score, setScore] = useState(0);
@@ -464,6 +495,11 @@ const App: React.FC = () => {
       call.answer(localStreamRef.current || undefined);
       mediaConnRef.current = call;
 
+      // Enforce high-definition, high-bitrate WebRTC video channel quality!
+      if (call.peerConnection) {
+        boostStreamQuality(call.peerConnection);
+      }
+
       call.on('stream', (remoteStream) => {
         console.log('📹 Opponent camera stream received!');
         setOpponentStream(remoteStream);
@@ -517,6 +553,11 @@ const App: React.FC = () => {
         console.log('📞 Stream dial-out to Host...');
         const call = p.call(`noseroast-${code}`, localStreamRef.current);
         mediaConnRef.current = call;
+
+        // Enforce high-definition, high-bitrate WebRTC video channel quality!
+        if (call.peerConnection) {
+          boostStreamQuality(call.peerConnection);
+        }
 
         call.on('stream', (remoteStream) => {
           console.log('📹 Remote Host camera received!');
@@ -1172,7 +1213,7 @@ const App: React.FC = () => {
     <div className={`flex h-screen w-screen overflow-hidden text-white font-inter select-none transition-all duration-700 relative ${gameState === 'START' ? 'mesh-gradient-bg' : 'bg-slate-950'}`}>
       
       {/* GLOBAL WEBCAM FEED BACKGROUND */}
-      <div className="absolute inset-0 w-screen h-screen z-0 pointer-events-none flex overflow-hidden bg-slate-950">
+      <div className="absolute inset-0 w-screen h-screen z-0 pointer-events-none flex flex-col lg:flex-row overflow-hidden bg-slate-950">
         {gameMode === 'SOLO' ? (
           <div className={`w-full h-full relative overflow-hidden transition-all duration-300 ${shakeLeft ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
             <video
@@ -1189,8 +1230,8 @@ const App: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Left Screen: Player 1 (Local) camera feed */}
-            <div className={`w-1/2 h-full relative overflow-hidden transition-all duration-300 ${shakeLeft ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
+            {/* Left/Top Screen: Player 1 (Local) camera feed */}
+            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden transition-all duration-300 ${shakeLeft ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
               <video
                 ref={videoRef}
                 autoPlay
@@ -1204,8 +1245,8 @@ const App: React.FC = () => {
               {isHyperDrive && renderSpeedLines()}
             </div>
 
-            {/* Right Screen: Player 2 (Remote Opponent) camera feed */}
-            <div className={`w-1/2 h-full relative overflow-hidden border-l border-white/10 flex items-center justify-center transition-all duration-300 ${shakeRight ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
+            {/* Right/Bottom Screen: Player 2 (Remote Opponent) camera feed */}
+            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden border-t lg:border-t-0 lg:border-l border-white/10 flex items-center justify-center transition-all duration-300 ${shakeRight ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
               {opponentStream ? (
                 <video
                   ref={(el) => {
@@ -1259,8 +1300,8 @@ const App: React.FC = () => {
               key={scoreAlert.key}
               className="absolute pointer-events-none z-50 animate-score-alert text-center font-game font-black uppercase tracking-wider text-gradient-orange"
               style={{
-                left: gameMode === 'SOLO' ? '50%' : '25%',
-                top: '30%',
+                left: gameMode === 'SOLO' ? '50%' : (gameDimensions.width < gameDimensions.height ? '50%' : '25%'),
+                top: gameMode === 'SOLO' ? '30%' : (gameDimensions.width < gameDimensions.height ? '15%' : '30%'),
                 transform: 'translate(-50%, -50%)',
                 fontSize: gameMode === 'SOLO' ? '28px' : '18px',
               }}

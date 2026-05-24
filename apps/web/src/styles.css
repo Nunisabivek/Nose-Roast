@@ -330,8 +330,10 @@ body {
 
 /* Studio-clear Webcam Filtering */
 .webcam-feed-clear {
-  filter: brightness(1.08) contrast(1.04) saturate(1.02);
-  transition: filter 0.5s ease;
+  filter: brightness(1.05) contrast(1.06) saturate(1.04);
+  image-rendering: auto;
+  object-fit: cover;
+  transition: filter 0.5s ease, transform 0.3s ease;
 }
 
 /* --- PREMIUM GEN Z 3D CAPSULE & GLOW BUTTONS --- */
