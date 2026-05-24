@@ -1269,7 +1269,7 @@ const App: React.FC = () => {
         ) : (
           <>
             {/* Left/Top Screen: Player 1 (Local) camera feed */}
-            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden transition-all duration-300 ${shakeLeft ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
+            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden transition-all duration-300 local-camera-glow ${shakeLeft ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
               <video
                 ref={videoRef}
                 autoPlay
@@ -1284,7 +1284,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Right/Bottom Screen: Player 2 (Remote Opponent) camera feed */}
-            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden border-t lg:border-t-0 lg:border-l border-white/10 flex items-center justify-center transition-all duration-300 ${shakeRight ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
+            <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden flex items-center justify-center transition-all duration-300 remote-camera-glow ${shakeRight ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
               {opponentStream ? (
                 <video
                   ref={(el) => {

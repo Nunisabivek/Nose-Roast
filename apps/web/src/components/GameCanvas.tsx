@@ -302,30 +302,71 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     ctx.fillText(score.toString(), xCenter, yTop + 25);
   };
 
-  const drawStatusBadge = (ctx: CanvasRenderingContext2D, isDead: boolean, xCenter: number, label: string, yTop: number = 78, yLabel: number = 13) => {
-    // 1. Draw Player Label (e.g. "YOU" or "OPPONENT")
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = 'bold 11px "Bungee", sans-serif';
+  const drawStatusBadge = (
+    ctx: CanvasRenderingContext2D,
+    isDead: boolean,
+    xCenter: number,
+    label: string,
+    yTop: number = 78,
+    yLabel: number = 13
+  ) => {
+    // 1. Draw Player Label pill capsule
+    ctx.save();
+    const isYou = label === 'YOU';
+    const primaryColor = isYou ? '#ef4444' : '#3b82f6'; // Red for YOU, Blue for Challenger
+    const glowBlur = 8 + Math.sin(Date.now() / 150) * 3;
+    
+    const pillW = isYou ? 70 : 120;
+    const pillH = 22;
+    const pillX = xCenter - pillW / 2;
+    const pillY = yLabel - 8;
+    
+    // Background with neon glow
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 11);
+    ctx.fill();
+    
+    ctx.strokeStyle = primaryColor;
+    ctx.shadowColor = primaryColor;
+    ctx.shadowBlur = glowBlur;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Core white border
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    
+    // Text label inside the capsule
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px "Bungee", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(label, xCenter, yLabel);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, xCenter, pillY + pillH / 2 + 1);
+    ctx.restore();
 
-    // 2. Draw Status capsule background
+    // 2. Draw Status capsule background below
+    ctx.save();
     const badgeWidth = 100;
     const badgeHeight = 22;
-    ctx.fillStyle = isDead ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+    ctx.fillStyle = isDead ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)';
     ctx.beginPath();
     ctx.roundRect(xCenter - badgeWidth / 2, yTop, badgeWidth, badgeHeight, 11);
     ctx.fill();
 
-    ctx.strokeStyle = isDead ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
+    ctx.strokeStyle = isDead ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     // 3. Draw Status Text
     ctx.fillStyle = isDead ? '#ef4444' : '#10b981';
     ctx.font = 'bold 10px "Bungee", sans-serif';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(isDead ? '💀 CRASHED' : '⚡ FLYING', xCenter, yTop + badgeHeight / 2);
+    ctx.restore();
   };
 
   const drawRoastedText = (ctx: CanvasRenderingContext2D, xOffset: number, halfWidth: number, screenHeight: number, yOffset: number = 0) => {
@@ -342,6 +383,49 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
     ctx.textBaseline = 'middle';
     ctx.fillText('ROASTED! 💀', xOffset + halfWidth / 2, yOffset + screenHeight / 2);
 
+    ctx.restore();
+  };
+
+  const drawViewportDetails = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    color: string,
+    isLocalPlayer: boolean
+  ) => {
+    ctx.save();
+    
+    // 1. Draw glowing inner scan line animation inside the viewport
+    const scanTime = Date.now() / 2500;
+    const scanY = y + (0.5 + Math.sin(scanTime * Math.PI) * 0.5) * h;
+    
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.08 + Math.sin(Date.now() / 300) * 0.02;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(x, scanY);
+    ctx.lineTo(x + w, scanY);
+    ctx.stroke();
+    
+    // 2. Draw glowing border around the viewport
+    ctx.restore();
+    ctx.save();
+    
+    const pulseBlur = 8 + Math.sin(Date.now() / 150) * 4;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = isLocalPlayer ? 4 : 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = pulseBlur;
+    
+    ctx.beginPath();
+    const inset = ctx.lineWidth / 2;
+    ctx.rect(x + inset, y + inset, w - inset * 2, h - inset * 2);
+    ctx.stroke();
+    
     ctx.restore();
   };
 
@@ -499,6 +583,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
           drawDuoScore(ctx, p1.score, halfWidth / 2, 20);
           drawStatusBadge(ctx, p1.isDead, halfWidth / 2, 'YOU', 78, 13);
           ctx.restore();
+          drawViewportDetails(ctx, 0, 0, halfWidth, height, '#ef4444', true);
 
           // 2. Draw Player 2 (Right Column)
           ctx.save();
@@ -529,6 +614,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
           drawDuoScore(ctx, p2.score, halfWidth + halfWidth / 2, 20);
           drawStatusBadge(ctx, p2.isDead, halfWidth + halfWidth / 2, 'CHALLENGER', 78, 13);
           ctx.restore();
+          drawViewportDetails(ctx, halfWidth, 0, halfWidth, height, '#3b82f6', false);
 
           // 3. Draw Neon Divider VS badge (Vertical)
           drawDivider(ctx, width, height, true);
@@ -566,6 +652,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
           drawDuoScore(ctx, p1.score, width / 2, 20);
           drawStatusBadge(ctx, p1.isDead, width / 2, 'YOU', 78, 13);
           ctx.restore();
+          drawViewportDetails(ctx, 0, 0, width, halfHeight, '#ef4444', true);
 
           // 2. Draw Player 2 (Bottom Half)
           ctx.save();
@@ -598,6 +685,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
           drawDuoScore(ctx, p2.score, width / 2, halfHeight + 20);
           drawStatusBadge(ctx, p2.isDead, width / 2, 'CHALLENGER', halfHeight + 78, halfHeight + 13);
           ctx.restore();
+          drawViewportDetails(ctx, 0, halfHeight, width, halfHeight, '#3b82f6', false);
 
           // 3. Draw Neon Divider VS badge (Horizontal)
           drawDivider(ctx, width, height, false);

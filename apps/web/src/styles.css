@@ -567,3 +567,38 @@ body {
   animation: scoreAlertPop 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
 }
 
+/* Animated glowing borders for multiplayer screen separation on mobile and desktop */
+.local-camera-glow {
+  box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.4);
+  border: 4px solid rgba(239, 68, 68, 0.6) !important;
+  animation: localPulseBorder 2s ease-in-out infinite;
+}
+
+.remote-camera-glow {
+  box-shadow: inset 0 0 30px rgba(59, 130, 246, 0.4);
+  border: 4px solid rgba(59, 130, 246, 0.6) !important;
+  animation: remotePulseBorder 2s ease-in-out infinite;
+}
+
+@keyframes localPulseBorder {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.3), 0 0 15px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.95);
+    box-shadow: inset 0 0 40px rgba(239, 68, 68, 0.6), 0 0 30px rgba(239, 68, 68, 0.4);
+  }
+}
+
+@keyframes remotePulseBorder {
+  0%, 100% {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.3), 0 0 15px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.95);
+    box-shadow: inset 0 0 40px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.4);
+  }
+}
+
