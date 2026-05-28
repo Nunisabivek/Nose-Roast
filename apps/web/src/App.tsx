@@ -159,6 +159,7 @@ const App: React.FC = () => {
   const birdRotationRef = useRef<number>(0);
   const isLocalDeadRef = useRef(false);
   const calibrationNoseYRef = useRef<number | null>(null);
+  const lastFaceDetectedTimeRef = useRef<number>(0);
 
   // Opponent player physics refs (P2)
   const bird2YRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight / 2 - GAME_CONFIG.birdHeight / 2 : 300);
@@ -187,6 +188,35 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Component unmount cleanup hook to prevent camera track leak and peer leak!
+  useEffect(() => {
+    return () => {
+      // 1. Stop all webcam tracks cleanly
+      if (localStreamRef.current) {
+        try {
+          localStreamRef.current.getTracks().forEach(track => {
+            track.stop();
+          });
+        } catch (e) {
+          console.error("Error stopping track", e);
+        }
+        localStreamRef.current = null;
+      }
+      
+      // 2. Destroy peer connection cleanly
+      if (peerRef.current) {
+        try {
+          peerRef.current.destroy();
+        } catch (e) {
+          console.error("Error destroying peer", e);
+        }
+        peerRef.current = null;
+      }
+
+      // 3. Stop BGM loop
+      AudioManager.getInstance().stopBGM();
+    };
+  }, []);
 
   // Load Saved Data
   useEffect(() => {
@@ -453,6 +483,9 @@ const App: React.FC = () => {
     gapRef.current = GAME_CONFIG.pipeGap;
     setCurrentSpeed(GAME_CONFIG.pipeSpeed);
     setAdCountdown(1);
+    
+    // Ensure background music volume is fully restored to normal level
+    AudioManager.getInstance().setBGMVolume(0.5);
 
     canvasRef.current?.clear();
   }, []);
@@ -944,6 +977,13 @@ const App: React.FC = () => {
         try {
           const results = landmarkerRef.current.detectForVideo(videoRef.current, currentTime);
           if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+            // Auto-recalibrate if tracking was lost for more than 1.5 seconds to prevent violent snapping
+            if (currentTime - lastFaceDetectedTimeRef.current > 1500 && lastFaceDetectedTimeRef.current > 0) {
+              console.log("⚠️ Regained tracking after dropout. Auto-recalibrating!");
+              calibrationNoseYRef.current = null;
+            }
+            lastFaceDetectedTimeRef.current = currentTime;
+
             const faceY = results.faceLandmarks[0][FACE_DETECTION_CONFIG.noseLandmarkIndex].y;
             
             if (gameStateRef.current === 'PLAYING') {
