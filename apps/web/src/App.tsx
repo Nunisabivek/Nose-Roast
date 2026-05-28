@@ -1384,36 +1384,48 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* ? MATCH FOUND OVERLAY */}
+          {/* ⚡ MATCH FOUND OVERLAY */}
           {showMatchFound && !IS_NATIVE && (
             <div className="absolute inset-0 z-[90] flex items-center justify-center"
-              style={{ background: 'rgba(2, 6, 23, 0.88)', backdropFilter: 'blur(12px)' }}>
+              style={{ background: 'rgba(2, 6, 23, 0.92)', backdropFilter: 'blur(18px)' }}>
               <div className="scan-sweep" />
-              <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-emerald-400/60" />
-              <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-emerald-400/60" />
-              <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-emerald-400/60" />
-              <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-emerald-400/60" />
-              <div className="animate-match-reveal flex flex-col items-center gap-6 px-6 w-full max-w-md">
-                <div className="animate-match-pulse bg-emerald-500/20 border-2 border-emerald-400 rounded-2xl px-8 py-3 text-center">
-                  <p className="text-emerald-300 text-[9px] font-game uppercase tracking-[0.5em] mb-1 animate-pulse">?? LIVE OPPONENT CONNECTED</p>
-                  <p className="text-white text-2xl font-game font-black tracking-widest drop-shadow-[0_0_20px_rgba(16,185,129,0.8)]">MATCH FOUND!</p>
+              {/* Corner brackets */}
+              <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-emerald-400/55" />
+              <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-emerald-400/55" />
+              <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-emerald-400/55" />
+              <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-emerald-400/55" />
+              {/* Content */}
+              <div className="animate-match-reveal flex flex-col items-center gap-5 px-6 w-full max-w-md">
+                {/* Header badge */}
+                <div className="animate-match-pulse glass-panel border-2 border-emerald-400/80 rounded-2xl px-8 py-3 text-center" style={{ boxShadow: '0 0 60px rgba(16,185,129,0.28)' }}>
+                  <p className="text-emerald-400 text-[8px] font-game uppercase tracking-[0.55em] mb-1.5 flex items-center justify-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    LIVE OPPONENT FOUND
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  </p>
+                  <p className="text-white text-2xl sm:text-3xl font-game font-black tracking-widest" style={{ textShadow: '0 0 30px rgba(16,185,129,0.9)' }}>MATCH FOUND!</p>
                 </div>
-                <div className="flex items-center justify-center gap-4 w-full">
-                  <div className="animate-vs-left flex-1 bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 text-center">
-                    <div className="text-3xl mb-2">??</div>
-                    <p className="text-orange-300 text-[9px] font-game uppercase tracking-widest mb-1">YOU</p>
-                    <p className="text-white font-game text-sm font-black truncate">{(username?.toUpperCase() || 'ANONYMOUS')}</p>
+                {/* Player cards */}
+                <div className="flex items-center justify-center gap-3 w-full">
+                  <div className="animate-vs-left flex-1 glass-panel glass-card-glow-orange p-3 sm:p-4 rounded-2xl text-center">
+                    <div className="text-2xl sm:text-3xl mb-1.5">🔥</div>
+                    <p className="text-orange-400 text-[8px] font-game uppercase tracking-widest mb-0.5">YOU</p>
+                    <p className="text-white font-game text-xs sm:text-sm font-black truncate max-w-[80px] mx-auto">{(username?.toUpperCase() || 'ANONYMOUS')}</p>
                   </div>
-                  <div className="animate-vs-badge flex-shrink-0 w-14 h-14 rounded-full bg-slate-950 border-2 border-white/20 flex items-center justify-center shadow-2xl">
-                    <span className="text-white font-game text-lg font-black">VS</span>
+                  <div className="animate-vs-badge flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full glass-panel border border-white/15 flex items-center justify-center shadow-2xl">
+                    <span className="text-white font-game text-base sm:text-lg">VS</span>
                   </div>
-                  <div className="animate-vs-right flex-1 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-4 text-center">
-                    <div className="text-3xl mb-2">??</div>
-                    <p className="text-indigo-300 text-[9px] font-game uppercase tracking-widest mb-1">OPPONENT</p>
-                    <p className="text-white font-game text-sm font-black truncate">{opponentName}</p>
+                  <div className="animate-vs-right flex-1 glass-panel glass-card-glow-indigo p-3 sm:p-4 rounded-2xl text-center">
+                    <div className="text-2xl sm:text-3xl mb-1.5">⚡</div>
+                    <p className="text-indigo-400 text-[8px] font-game uppercase tracking-widest mb-0.5">OPPONENT</p>
+                    <p className="text-white font-game text-xs sm:text-sm font-black truncate max-w-[80px] mx-auto">{opponentName}</p>
                   </div>
                 </div>
-                <p className="text-white/60 text-[10px] font-game uppercase tracking-[0.3em] animate-pulse">?? Preparing Battle Arena...</p>
+                <div className="flex items-center gap-2 text-white/45">
+                  <div className="w-3 h-3 border-2 border-emerald-400/40 border-t-emerald-400 rounded-full animate-spin" />
+                  <p className="text-[9px] font-game uppercase tracking-[0.35em] animate-pulse">Preparing Battle Arena...</p>
+                  <div className="w-3 h-3 border-2 border-emerald-400/40 border-t-emerald-400 rounded-full animate-spin" />
+                </div>
               </div>
             </div>
           )}
@@ -1453,33 +1465,39 @@ const App: React.FC = () => {
           {/* START SCREEN */}
           {gameState === 'START' && (
             <div className="absolute inset-0 bg-transparent flex flex-col items-center justify-center z-50 text-center overflow-hidden">
-              <div className="flex-1 flex flex-col items-center overflow-y-auto py-8 px-6 w-full relative">
+              <div className="flex-1 flex flex-col items-center overflow-y-auto py-5 sm:py-8 px-4 sm:px-6 w-full relative">
                 
-                {/* Animated background particles */}
+                {/* Ambient background orbs */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <div className="absolute top-10 left-1/4 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl floating-blob" />
-                  <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-4s' }} />
-                  <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-8s' }} />
+                  <div className="absolute top-8 left-1/4 w-72 h-72 bg-orange-500/12 rounded-full blur-3xl floating-blob" />
+                  <div className="absolute bottom-8 right-1/4 w-80 h-80 bg-indigo-500/12 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-4s' }} />
+                  <div className="absolute top-1/2 left-1/3 w-56 h-56 bg-emerald-500/6 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-8s' }} />
+                  <div className="absolute top-1/4 right-1/5 w-48 h-48 bg-purple-500/6 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-2s' }} />
                 </div>
 
-                {/* Centered content wrapper that dynamically scrolls and prevents scaling/cutoff issues */}
+                {/* Centered content wrapper */}
                 <div className="my-auto w-full max-w-sm flex flex-col items-center flex-shrink-0 relative">
 
-                  {/* Logo Section */}
-                  <div className="relative mb-1.5 sm:mb-3 animate-float">
-                  <div className="w-14 h-14 sm:w-28 sm:h-28 bg-gradient-to-br from-orange-500 via-red-500 to-indigo-500 rounded-[1.1rem] sm:rounded-[2.2rem] p-1 shadow-2xl shadow-orange-500/30 hover:rotate-6 transition-all duration-300">
-                    <div className="w-full h-full bg-slate-950 rounded-[0.95rem] sm:rounded-[2rem] flex items-center justify-center overflow-hidden">
-                      <img src="/logo.png" alt="Nose Roast" className="w-[110%] h-[110%] object-contain hover:scale-105 transition-transform duration-300" />
+                  {/* === HERO LOGO === */}
+                  <div className="relative mb-2 sm:mb-3 animate-float">
+                    {/* Glow ring behind logo */}
+                    <div className="absolute inset-0 -m-4 rounded-[3rem] bg-orange-500/10 blur-xl" />
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-400 via-red-500 to-indigo-600 rounded-[1.4rem] sm:rounded-[2rem] p-[3px] shadow-2xl shadow-orange-500/35 hover:rotate-6 transition-all duration-500 logo-pulse">
+                      <div className="w-full h-full bg-slate-950 rounded-[1.2rem] sm:rounded-[1.8rem] flex items-center justify-center overflow-hidden">
+                        <img src="/logo.png" alt="Nose Roast" className="w-[115%] h-[115%] object-contain hover:scale-110 transition-transform duration-500" />
+                      </div>
+                    </div>
+                    {/* LIVE badge */}
+                    <div className="absolute -top-2 -right-2 sm:-top-2.5 sm:-right-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[6px] sm:text-[7px] font-black px-2 py-0.5 rounded-full shadow-lg animate-bounce flex items-center gap-0.5">
+                      <span className="w-1 h-1 rounded-full bg-white/80 animate-ping inline-block" />⚡ LIVE
                     </div>
                   </div>
-                  <div className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 bg-gradient-to-r from-red-500 to-indigo-500 text-white text-[7px] sm:text-[8px] font-black px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-lg animate-bounce">🔥 DUEL</div>
-                </div>
 
-                {/* Title */}
-                <h1 className="text-2xl sm:text-4xl font-game text-white tracking-tight leading-none mb-0.5 sm:mb-1 drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
-                  NOSE<span className="text-gradient-orange">ROAST</span>
-                </h1>
-                <p className="text-white/95 text-[9px] sm:text-[11px] uppercase font-extrabold tracking-[0.16em] mb-2 sm:mb-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Fly with your face • Live Online P2P Matchmaking</p>
+                  {/* === TITLE === */}
+                  <h1 className="text-3xl sm:text-5xl font-game text-white tracking-tight leading-none mb-0.5 sm:mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]">
+                    NOSE<span className="text-gradient-orange">ROAST</span>
+                  </h1>
+                  <p className="text-white/55 text-[8px] sm:text-[10px] uppercase font-bold tracking-[0.2em] mb-3 sm:mb-5">Fly with your face • AI Roaster • P2P Duels</p>
 
                 {/* Glass Main UI Container */}
                 <div className="w-full max-w-sm p-3.5 sm:p-6 glass-panel glass-panel-animated rounded-2xl sm:rounded-3xl relative overflow-hidden shadow-2xl flex flex-col items-center flex-shrink-0">
@@ -2022,10 +2040,30 @@ const App: React.FC = () => {
 
           {/* LOADING SCREEN */}
           {gameState === 'LOADING' && (
-            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center z-[100] text-white">
-              <div className="relative"><div className="w-20 h-20 border-8 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-6" /><div className="absolute inset-0 flex items-center justify-center font-black text-orange-400 text-xs">AI</div></div>
-              <p className="text-[9px] font-game tracking-[0.5em] text-white/40 animate-pulse uppercase">Waking up neural coordinate sensors...</p>
-              <p className="text-[8px] text-white/20 mt-2">v{APP_VERSION}</p>
+            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center z-[100] text-white overflow-hidden">
+              {/* Ambient blobs */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl floating-blob" />
+                <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-indigo-500/8 rounded-full blur-3xl floating-blob" style={{ animationDelay: '-5s' }} />
+              </div>
+              {/* Logo */}
+              <div className="relative mb-7 fade-in-up">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-500 via-red-500 to-indigo-600 rounded-3xl p-[3px] shadow-2xl loading-logo-pulse">
+                  <div className="w-full h-full bg-slate-950 rounded-[1.4rem] flex items-center justify-center overflow-hidden">
+                    <img src="/logo.png" alt="Nose Roast" className="w-[115%] h-[115%] object-contain" />
+                  </div>
+                </div>
+              </div>
+              {/* Brand */}
+              <h1 className="text-3xl sm:text-4xl font-game text-white tracking-tight mb-1 fade-in-up-delay-1">
+                NOSE<span className="text-gradient-orange">ROAST</span>
+              </h1>
+              <p className="text-[9px] sm:text-[10px] font-game text-white/30 uppercase tracking-[0.45em] mb-8 fade-in-up-delay-2">Booting Neural Sensors...</p>
+              {/* Progress bar */}
+              <div className="w-48 sm:w-64 h-[3px] bg-white/8 rounded-full overflow-hidden fade-in-up-delay-3">
+                <div className="h-full bg-gradient-to-r from-orange-500 via-red-500 to-indigo-500 rounded-full loading-bar-anim" />
+              </div>
+              <p className="text-[8px] text-white/15 mt-5">v{APP_VERSION}</p>
             </div>
           )}
 
