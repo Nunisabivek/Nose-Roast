@@ -397,33 +397,58 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ width, heigh
   ) => {
     ctx.save();
     
-    // 1. Draw glowing inner scan line animation inside the viewport
+    // 1. Calculate shifting HSL neon color based on time
+    // Local player uses a warm fiery gradient (Pink-Red to Gold-Orange: HSL hue 330 to 45)
+    // Challenger uses a cool electric gradient (Cyan to Purple-Blue: HSL hue 180 to 280)
+    let hue: number;
+    let colorString: string;
+    const timeFactor = Date.now() / 15;
+    
+    if (isLocalPlayer) {
+      const baseHue = 330; 
+      const deltaHue = 75; // goes up to 405 (which is 45 deg)
+      hue = (baseHue + (Math.sin(timeFactor * Math.PI / 180) * 0.5 + 0.5) * deltaHue) % 360;
+      colorString = `hsl(${hue}, 100%, 55%)`;
+    } else {
+      const baseHue = 180;
+      const deltaHue = 100;
+      hue = baseHue + (Math.sin(timeFactor * Math.PI / 180) * 0.5 + 0.5) * deltaHue;
+      colorString = `hsl(${hue}, 100%, 50%)`;
+    }
+
+    // 2. Draw glowing inner scan line animation inside the viewport
     const scanTime = Date.now() / 2500;
     const scanY = y + (0.5 + Math.sin(scanTime * Math.PI) * 0.5) * h;
     
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = colorString;
     ctx.lineWidth = 1.5;
     ctx.globalAlpha = 0.08 + Math.sin(Date.now() / 300) * 0.02;
-    ctx.shadowColor = color;
+    ctx.shadowColor = colorString;
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(x, scanY);
     ctx.lineTo(x + w, scanY);
     ctx.stroke();
     
-    // 2. Draw glowing border around the viewport
+    // 3. Draw pulsating shifting glowing border around the viewport
     ctx.restore();
     ctx.save();
     
-    const pulseBlur = 8 + Math.sin(Date.now() / 150) * 4;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = isLocalPlayer ? 4 : 2;
-    ctx.shadowColor = color;
+    const pulseBlur = 12 + Math.sin(Date.now() / 100) * 6;
+    ctx.strokeStyle = colorString;
+    ctx.lineWidth = isLocalPlayer ? 5 : 3;
+    ctx.shadowColor = colorString;
     ctx.shadowBlur = pulseBlur;
     
     ctx.beginPath();
     const inset = ctx.lineWidth / 2;
     ctx.rect(x + inset, y + inset, w - inset * 2, h - inset * 2);
+    ctx.stroke();
+    
+    // Add the white-hot inner neon tube core stroke!
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.75;
     ctx.stroke();
     
     ctx.restore();

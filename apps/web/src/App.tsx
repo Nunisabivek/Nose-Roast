@@ -723,6 +723,7 @@ const App: React.FC = () => {
     gameStartTimeRef.current = performance.now() + countdownMs;
     setGameCountdown(3);
     setGameState('COUNTDOWN');
+    AudioManager.getInstance().playBGM();
   };
 
   const handleGameOver = useCallback((reason: string) => {
@@ -1453,7 +1454,7 @@ const App: React.FC = () => {
                 <p className="text-white/95 text-[9px] sm:text-[11px] uppercase font-extrabold tracking-[0.16em] mb-2 sm:mb-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Fly with your face • Live Online P2P Matchmaking</p>
 
                 {/* Glass Main UI Container */}
-                <div className="w-full max-w-sm p-3.5 sm:p-6 glass-panel rounded-2xl sm:rounded-3xl relative overflow-hidden shadow-2xl flex flex-col items-center flex-shrink-0">
+                <div className="w-full max-w-sm p-3.5 sm:p-6 glass-panel glass-panel-animated rounded-2xl sm:rounded-3xl relative overflow-hidden shadow-2xl flex flex-col items-center flex-shrink-0">
                   
                   {/* Username Input */}
                   <div className="w-full mb-2 sm:mb-4 relative">

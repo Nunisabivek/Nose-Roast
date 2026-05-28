@@ -350,6 +350,7 @@ const App: React.FC = () => {
     gameStartTimeRef.current = performance.now() + countdownMs;
     setGameCountdown(3);
     setGameState('COUNTDOWN');
+    AudioManager.getInstance().playBGM();
   };
 
   const handleGameOver = useCallback((reason: string) => {

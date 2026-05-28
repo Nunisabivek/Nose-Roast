@@ -234,6 +234,21 @@ body {
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+@keyframes borderShimmer {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.65);
+  }
+  50% {
+    border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.65), 0 0 25px rgba(249, 115, 22, 0.12);
+  }
+}
+
+.glass-panel-animated {
+  animation: borderShimmer 8s infinite ease-in-out;
+}
+
 .glass-card-glow-indigo {
   box-shadow: 0 0 35px rgba(99, 102, 241, 0.15), inset 0 0 15px rgba(99, 102, 241, 0.05);
   border: 1px solid rgba(99, 102, 241, 0.25);

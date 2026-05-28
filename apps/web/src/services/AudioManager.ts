@@ -6,6 +6,7 @@ export class AudioManager {
     private isMuted: boolean = false;
     private masterGain: GainNode | null = null;
     private bgmGain: GainNode | null = null;
+    private shouldPlayBGM: boolean = false;
 
     private constructor() {
         try {
@@ -39,7 +40,6 @@ export class AudioManager {
         if (!this.audioContext) return;
 
         const soundFiles = {
-            flap: '/assets/audio/flap.mp3',
             crash: '/assets/audio/crash.mp3',
             score: '/assets/audio/score.mp3',
             bgm: '/assets/audio/bgm.mp3',
@@ -51,6 +51,11 @@ export class AudioManager {
                 const arrayBuffer = await response.arrayBuffer();
                 const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
                 this.buffers.set(key, audioBuffer);
+                
+                // If BGM just loaded and we have been requested to play it, trigger now!
+                if (key === 'bgm' && this.shouldPlayBGM) {
+                    this.playBGM();
+                }
             } catch (e) {
                 console.error(`Failed to load sound ${key}`, e);
             }
@@ -58,6 +63,7 @@ export class AudioManager {
     }
 
     public playBGM() {
+        this.shouldPlayBGM = true;
         if (this.isMuted || !this.audioContext || !this.buffers.has('bgm')) return;
 
         // Don't play if already playing
@@ -87,6 +93,7 @@ export class AudioManager {
     }
 
     public stopBGM() {
+        this.shouldPlayBGM = false;
         if (this.bgmSource) {
             try {
                 this.bgmSource.stop();
@@ -109,7 +116,7 @@ export class AudioManager {
         }
     }
 
-    public playSound(name: 'flap' | 'crash' | 'score') {
+    public playSound(name: 'crash' | 'score') {
         if (this.isMuted || !this.audioContext || !this.buffers.has(name) || !this.masterGain) return;
 
         try {
@@ -155,7 +162,6 @@ export class AudioManager {
         if (this.audioContext && this.audioContext.state === 'suspended') {
             this.audioContext.resume().then(() => {
                 console.log("Audio Context Resumed!");
-                this.playSound('flap'); // Play a silent or tiny sound to verify?
             });
         }
     }
