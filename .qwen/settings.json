@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir *)",
+      "Bash(npx *)",
+      "Bash(type *)",
+      "Bash(findstr *)",
+      "Bash(npm run *)",
+      "Bash(rmdir *)",
+      "Bash(npm install)",
+      "Bash(copy *)",
+      "Bash(.\\gradlew *)",
+      "Bash(adb *)",
+      "Bash(git add *)",
+      "Bash(git push)"
+    ]
+  },
+  "$version": 3
+}

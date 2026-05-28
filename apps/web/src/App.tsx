@@ -826,7 +826,8 @@ const App: React.FC = () => {
       verdictSpoken = "It is a tie! You both played equally bad.";
     }
 
-    const finalDuoRoast = getDuoRoast(p1Score, p2Score);
+    const duoVerdict: 'WIN' | 'LOSE' | 'DRAW' = p1Score > p2Score ? 'WIN' : p1Score < p2Score ? 'LOSE' : 'DRAW';
+    const finalDuoRoast = getDuoRoast(p1Score, p2Score, duoVerdict, firstCrashedRef.current as 'P1' | 'P2' | null);
     setCommentary(finalDuoRoast);
     setGameState('GAMEOVER');
 
@@ -1310,7 +1311,29 @@ const App: React.FC = () => {
               />
               {flashLeft && <div className="absolute inset-0 bg-red-600 animate-flash-red z-10" />}
               {isHyperDrive && renderSpeedLines()}
+              {/* Player 1 label — always visible during PLAYING */}
+              {gameState === 'PLAYING' && (
+                <div className="absolute bottom-2 left-2 z-20 flex flex-col gap-1 pointer-events-none">
+                  <div className="flex items-center gap-1 bg-black/55 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 status-dot flex-shrink-0" />
+                    <span className="text-[9px] sm:text-[10px] font-game text-white/90 uppercase tracking-wide truncate max-w-[90px] sm:max-w-[120px]">
+                      {username?.toUpperCase() || 'YOU'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* YOU crashed banner */}
+              {gameState === 'PLAYING' && isLocalDeadRef.current && (
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                  <div className="crash-banner bg-red-600/85 backdrop-blur-md border border-red-400/60 rounded-2xl px-4 py-2 shadow-2xl">
+                    <p className="text-white font-game text-sm sm:text-base tracking-widest uppercase">💥 CRASHED!</p>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Vertical divider line (mobile) / No divider on desktop since border handles it */}
+            <div className="w-full h-px lg:w-px lg:h-full bg-white/8 flex-shrink-0 z-10" />
 
             {/* Right/Bottom Screen: Player 2 (Remote Opponent) camera feed */}
             <div className={`w-full h-1/2 lg:w-1/2 lg:h-full relative overflow-hidden flex items-center justify-center transition-all duration-300 remote-camera-glow ${shakeRight ? 'animate-shake' : ''} ${isHyperDrive ? 'hyper-drive-glow' : ''}`}>
@@ -1328,13 +1351,37 @@ const App: React.FC = () => {
                   style={{ transform: 'scaleX(-1)' }}
                 />
               ) : (
-                <div className="text-white/30 text-xs font-game animate-pulse text-center leading-loose">
-                  <p>WAITING FOR</p>
-                  <p className="text-indigo-400">CHALLENGER STREAM...</p>
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <div className="relative">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin" />
+                  </div>
+                  <div>
+                    <p className="text-indigo-400 text-[9px] sm:text-[10px] font-game uppercase tracking-widest animate-pulse">Waiting for</p>
+                    <p className="text-white/50 text-[8px] sm:text-[9px] font-game uppercase tracking-widest">Challenger Stream</p>
+                  </div>
                 </div>
               )}
               {isHyperDrive && renderSpeedLines()}
               {flashRight && <div className="absolute inset-0 bg-red-600 animate-flash-red z-10" />}
+              {/* Opponent label */}
+              {gameState === 'PLAYING' && (
+                <div className="absolute bottom-2 right-2 z-20 flex flex-col gap-1 items-end pointer-events-none">
+                  <div className="flex items-center gap-1 bg-black/55 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 status-dot flex-shrink-0" />
+                    <span className="text-[9px] sm:text-[10px] font-game text-white/90 uppercase tracking-wide truncate max-w-[90px] sm:max-w-[120px]">
+                      {opponentName || 'OPPONENT'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* OPPONENT crashed banner */}
+              {gameState === 'PLAYING' && isOpponentDeadRef.current && (
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                  <div className="crash-banner bg-indigo-600/85 backdrop-blur-md border border-indigo-400/60 rounded-2xl px-4 py-2 shadow-2xl">
+                    <p className="text-white font-game text-sm sm:text-base tracking-widest uppercase">💥 CRASHED!</p>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -1599,121 +1646,155 @@ const App: React.FC = () => {
 
                   {/* Matchmaking Lobby Block (Only shown in DUO Mode) */}
                   {gameMode === 'DUO' && (
-                    <div className="w-full mt-1.5 p-3 bg-slate-950/40 border border-white/5 rounded-xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none animate-pulse" />
-                      <h3 className="text-[9px] sm:text-[10px] font-game text-indigo-400 mb-2.5 sm:mb-4 tracking-wider flex items-center justify-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
-                        <span>👥 DUEL MATCHMAKING</span>
-                      </h3>
+                    <div className="w-full mt-2 duel-lobby-card duel-lobby-card-animated rounded-2xl overflow-hidden relative">
+                      {/* Ambient indigo glow */}
+                      <div className="absolute top-0 right-0 w-28 h-28 bg-indigo-500/8 rounded-full blur-2xl pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 w-20 h-20 bg-purple-500/6 rounded-full blur-2xl pointer-events-none" />
 
-                      {connectionStatus === 'DISCONNECTED' && (
-                        <div className="space-y-2.5">
-                          <button
-                            onClick={createDuelRoom}
-                            className="btn-premium btn-premium-indigo w-full text-white py-2 px-5 rounded-full text-[10px] sm:text-[11px] shadow-lg shadow-indigo-500/10 hover:shadow-indigo-500/30"
-                          >
-                            ⚔️ HOST BATTLE ROOM
-                          </button>
+                      {/* Header */}
+                      <div className="flex items-center justify-center gap-2 px-4 pt-3 pb-2">
+                        <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full status-dot" />
+                        <h3 className="text-[9px] sm:text-[10px] font-game text-indigo-300 uppercase tracking-[0.35em]">⚔️ Duel Matchmaking</h3>
+                        <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full status-dot" />
+                      </div>
+                      <div className="h-px mx-4 bg-gradient-to-r from-transparent via-indigo-500/25 to-transparent mb-3" />
 
-                          <div className="relative flex py-0.5 items-center">
-                            <div className="flex-grow border-t border-white/10"></div>
-                            <span className="flex-shrink mx-3 text-white/70 text-[9px] uppercase tracking-[0.25em] font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">OR</span>
-                            <div className="flex-grow border-t border-white/10"></div>
-                          </div>
+                      <div className="px-3 pb-3">
 
-                          <div className="flex gap-1.5">
-                            <input
-                              type="text"
-                              value={joinCodeInput}
-                              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                              placeholder="ROOM CODE..."
-                              maxLength={5}
-                              className="flex-1 bg-slate-950/45 border border-white/10 rounded-full px-3 py-1.5 text-white text-center text-xs font-extrabold uppercase placeholder-white/45 focus:outline-none focus:border-indigo-500 focus:shadow-[0_0_12px_rgba(99,102,241,0.2)] transition-all"
-                            />
+                        {/* DISCONNECTED: Entry options */}
+                        {connectionStatus === 'DISCONNECTED' && (
+                          <div className="space-y-2">
                             <button
-                              onClick={() => joinCodeInput.trim() && joinDuelRoom(joinCodeInput.trim())}
-                              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] font-game transition-all active:scale-95 shadow-md shadow-emerald-500/20 font-black hover:scale-103"
+                              onClick={createDuelRoom}
+                              className="btn-premium btn-premium-indigo w-full text-white py-2.5 px-5 rounded-full text-[10px] sm:text-[11px] shadow-lg"
                             >
-                              JOIN
+                              ⚔️ HOST BATTLE ROOM
                             </button>
-                          </div>
-                        </div>
-                      )}
 
-                      {connectionStatus === 'CREATING' && (
-                        <div className="py-2.5 text-center">
-                          <div className="w-6 h-6 border-3 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
-                          <p className="text-[10px] sm:text-[11px] font-game text-indigo-400 uppercase animate-pulse">Creating battle chamber...</p>
-                        </div>
-                      )}
-
-                      {connectionStatus === 'WAITING' && (
-                        <div className="py-1 text-center space-y-2.5">
-                          <p className="text-[10px] sm:text-[11px] font-game text-gradient-rainbow uppercase font-bold animate-pulse">Chamber Ready! Code:</p>
-                          <div className="bg-slate-950 border border-indigo-500/30 py-2 rounded-xl text-xl sm:text-3xl font-game tracking-widest text-yellow-400 select-all cursor-pointer shadow-[inset_0_4px_15px_rgba(0,0,0,0.65)] hover:border-yellow-500/40 transition-colors duration-300">
-                            {roomCode}
-                          </div>
-                          <p className="text-[9px] sm:text-[11px] text-white/80 font-bold px-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
-                            Invite opponent to join:
-                          </p>
-                          <button
-                            onClick={() => {
-                              const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
-                              navigator.clipboard.writeText(link);
-                              alert('📋 Copied battle invite link to clipboard!');
-                            }}
-                            className="bg-slate-950/80 hover:bg-indigo-500/20 text-indigo-200 py-1.5 px-3 border border-indigo-500/30 hover:border-indigo-500/50 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1 mx-auto shadow-md"
-                          >
-                            <Copy size={10} className="text-indigo-400" /> Copy Battle Invite Link
-                          </button>
-                          <div className="pt-1 text-center">
-                            <div className="w-4 h-4 border-2 border-white/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-1.5" />
-                            <p className="text-[9px] uppercase tracking-[0.12em] font-black text-indigo-300 animate-pulse">Waiting for stream...</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {connectionStatus === 'CONNECTING' && (
-                        <div className="py-2.5 text-center">
-                          <div className="w-6 h-6 border-3 border-indigo-500/25 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
-                          <p className="text-[10px] sm:text-[11px] font-game text-indigo-400 uppercase animate-pulse">Dialing live streams...</p>
-                        </div>
-                      )}
-
-                      {connectionStatus === 'CONNECTED' && (
-                        <div className="py-1 text-center space-y-2.5">
-                          <div className="flex items-center justify-center gap-1.5 text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                            <span className="text-[10px] font-game">LIVE STREAM ACTIVE!</span>
-                          </div>
-                          
-                          {peerRef.current?.id.startsWith('noseroast-client-') ? (
-                            <div className="bg-slate-950/60 py-2.5 px-3 rounded-xl border border-white/5 shadow-inner">
-                              <p className="text-[10px] uppercase tracking-[0.12em] text-indigo-300 font-game animate-pulse drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">Waiting for Host stream...</p>
+                            <div className="relative flex py-1 items-center">
+                              <div className="flex-grow h-px bg-white/8" />
+                              <span className="flex-shrink mx-3 text-white/40 text-[8px] uppercase tracking-[0.35em] font-black">OR</span>
+                              <div className="flex-grow h-px bg-white/8" />
                             </div>
-                          ) : (
-                            <button
-                              onClick={startCameraAndGame}
-                              className="btn-premium btn-premium-orange w-full text-white py-2 px-5 rounded-full text-[11px] shadow-xl shadow-orange-500/30"
-                            >
-                              ⚔️ INITIATE BATTLE
-                            </button>
-                          )}
-                        </div>
-                      )}
 
-                      {connectionStatus === 'ERROR' && (
-                        <div className="py-2 text-center space-y-3">
-                          <p className="text-[11px] font-game text-red-500 uppercase">Lobby Error</p>
-                          <p className="text-[11px] text-red-200/80 leading-relaxed font-semibold px-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">{errorMessage}</p>
-                          <button
-                            onClick={() => setConnectionStatus('DISCONNECTED')}
-                            className="bg-white/10 hover:bg-white/15 text-white py-2 px-6 rounded-full text-[10px] font-game"
-                          >
-                            BACK TO LOBBY
-                          </button>
-                        </div>
-                      )}
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                value={joinCodeInput}
+                                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                                placeholder="ROOM CODE..."
+                                maxLength={5}
+                                className="flex-1 genz-input bg-slate-950/60 border border-white/8 rounded-full px-3 py-2 text-white text-center text-xs font-extrabold uppercase placeholder-white/30 focus:outline-none focus:border-indigo-400 focus:shadow-[0_0_12px_rgba(99,102,241,0.2)] transition-all"
+                              />
+                              <button
+                                onClick={() => joinCodeInput.trim() && joinDuelRoom(joinCodeInput.trim())}
+                                className="btn-premium-emerald px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-game"
+                              >
+                                JOIN
+                              </button>
+                            </div>
+                            <p className="text-white/25 text-[8px] text-center uppercase tracking-widest">Get a code from your friend</p>
+                          </div>
+                        )}
+
+                        {/* CREATING: Generating room */}
+                        {connectionStatus === 'CREATING' && (
+                          <div className="py-3 text-center flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 connecting-dot-1" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 connecting-dot-2" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 connecting-dot-3" />
+                            </div>
+                            <p className="text-[10px] sm:text-[11px] font-game text-indigo-300 uppercase tracking-wider animate-pulse">Creating battle chamber...</p>
+                          </div>
+                        )}
+
+                        {/* WAITING: Show room code */}
+                        {connectionStatus === 'WAITING' && (
+                          <div className="space-y-2">
+                            <p className="text-[8px] sm:text-[9px] font-game text-indigo-300/70 uppercase tracking-widest text-center">Chamber Ready — Share Code:</p>
+                            <div className="room-code-display py-3 text-center cursor-pointer select-all"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(roomCode).catch(() => {});
+                              }}
+                            >
+                              <span className="text-2xl sm:text-4xl font-game tracking-[0.4em] text-yellow-400 drop-shadow-[0_0_20px_rgba(234,179,8,0.6)]">{roomCode}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+                                navigator.clipboard.writeText(link);
+                                alert('📋 Copied battle invite link!');
+                              }}
+                              className="w-full glass-panel-dark border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-200 py-1.5 px-3 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-md active:scale-95"
+                            >
+                              <Copy size={9} className="text-indigo-400" /> Copy Invite Link
+                            </button>
+                            <div className="flex items-center justify-center gap-2 pt-1">
+                              <div className="w-3 h-3 border-2 border-white/15 border-t-indigo-400 rounded-full animate-spin" />
+                              <p className="text-[8px] uppercase tracking-[0.18em] font-black text-indigo-300/70 animate-pulse">Waiting for opponent...</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CONNECTING: Dialing in */}
+                        {connectionStatus === 'CONNECTING' && (
+                          <div className="py-3 text-center flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 connecting-dot-1" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 connecting-dot-2" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 connecting-dot-3" />
+                            </div>
+                            <p className="text-[10px] sm:text-[11px] font-game text-emerald-300 uppercase tracking-wider animate-pulse">Dialing live streams...</p>
+                          </div>
+                        )}
+
+                        {/* CONNECTED: Ready to fight */}
+                        {connectionStatus === 'CONNECTED' && (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-center gap-1.5 py-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                              <span className="text-[10px] font-game text-emerald-300 uppercase tracking-wider">Live Stream Active!</span>
+                            </div>
+
+                            {peerRef.current?.id.startsWith('noseroast-client-') ? (
+                              <div className="glass-panel-dark border border-white/6 py-2.5 px-3 rounded-xl text-center">
+                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                  <div className="w-3 h-3 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+                                  <p className="text-[9px] uppercase tracking-[0.15em] text-indigo-200/70 font-game animate-pulse">Waiting for Host to start...</p>
+                                </div>
+                                <p className="text-[8px] text-white/25">The host will initiate the match</p>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={startCameraAndGame}
+                                className="btn-premium btn-premium-orange w-full text-white py-3 px-5 rounded-full text-[11px] sm:text-sm shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2"
+                              >
+                                <span className="text-base">⚔️</span>
+                                <span>INITIATE BATTLE</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ERROR state */}
+                        {connectionStatus === 'ERROR' && (
+                          <div className="py-2 text-center space-y-2.5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="text-base">⚠️</span>
+                              <p className="text-[10px] font-game text-red-400 uppercase tracking-wider">Lobby Error</p>
+                            </div>
+                            <p className="text-[10px] text-red-200/70 leading-relaxed font-semibold px-3">{errorMessage}</p>
+                            <button
+                              onClick={() => setConnectionStatus('DISCONNECTED')}
+                              className="glass-panel-dark border border-white/10 hover:border-white/20 text-white/70 hover:text-white py-2 px-5 rounded-full text-[10px] font-game transition-all"
+                            >
+                              ← Back to Lobby
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
                     </div>
                   )}
 
@@ -1842,114 +1923,123 @@ const App: React.FC = () => {
                 
                 {/* 1v1 DUEL SPECIFIC MATCH VERDICT */}
                 {gameMode === 'DUO' ? (
-                  <div className="w-full max-w-lg mx-auto py-2">
+                  <div className="w-full max-w-lg mx-auto">
 
-                    {/* === EPIC VERDICT HEADER === */}
-                    <div className="text-center mb-2.5 sm:mb-4 animate-verdict-pop">
+                    {/* === VERDICT HEADER === */}
+                    <div className="text-center mb-3 animate-verdict-pop">
                       {matchVerdict === 'WIN' && (
-                        <div>
+                        <div className="flex flex-col items-center gap-1">
                           <div className="text-4xl sm:text-5xl animate-crown inline-block">👑</div>
-                          <h2 className="text-2xl sm:text-3xl font-game text-emerald-400 tracking-wider drop-shadow-[0_0_20px_rgba(16,185,129,0.8)]">
-                            YOU DOMINATED!
+                          <h2 className="text-2xl sm:text-4xl font-game tracking-wider" style={{ background: 'linear-gradient(135deg, #34d399, #fbbf24)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: 'none' }}>
+                            YOU WON!
                           </h2>
-                          <p className="text-emerald-300/70 text-[9px] sm:text-[10px] font-game uppercase tracking-[0.3em] mt-0.5">Victory Royale • Nose Edition</p>
+                          <p className="text-emerald-300/60 text-[8px] sm:text-[9px] font-game uppercase tracking-[0.4em]">Nose Supremacy Achieved</p>
                         </div>
                       )}
                       {matchVerdict === 'LOSE' && (
-                        <div>
+                        <div className="flex flex-col items-center gap-1">
                           <div className="text-4xl sm:text-5xl animate-bounce inline-block">💀</div>
-                          <h2 className="text-2xl sm:text-3xl font-game text-red-500 tracking-wider glitch-text drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+                          <h2 className="text-2xl sm:text-4xl font-game text-red-500 tracking-wider glitch-text" style={{ textShadow: '0 0 20px rgba(239,68,68,0.7)' }}>
                             GET CLIPPED!
                           </h2>
-                          <p className="text-red-400/70 text-[9px] sm:text-[10px] font-game uppercase tracking-[0.3em] mt-0.5">Your nose betrayed you</p>
+                          <p className="text-red-400/60 text-[8px] sm:text-[9px] font-game uppercase tracking-[0.4em]">Your nose betrayed you</p>
                         </div>
                       )}
                       {matchVerdict === 'DRAW' && (
-                        <div>
+                        <div className="flex flex-col items-center gap-1">
                           <div className="text-4xl sm:text-5xl animate-bounce inline-block">🤝</div>
-                          <h2 className="text-2xl sm:text-3xl font-game text-yellow-400 tracking-wider drop-shadow-[0_0_20px_rgba(251,191,36,0.6)]">
-                            BOTH LOST TBH
+                          <h2 className="text-2xl sm:text-4xl font-game text-yellow-400 tracking-wider" style={{ textShadow: '0 0 20px rgba(251,191,36,0.7)' }}>
+                            DEAD HEAT
                           </h2>
-                          <p className="text-yellow-300/70 text-[9px] sm:text-[10px] font-game uppercase tracking-[0.3em] mt-0.5">Synchronized disappointment</p>
+                          <p className="text-yellow-300/60 text-[8px] sm:text-[9px] font-game uppercase tracking-[0.4em]">Synchronized disappointment</p>
                         </div>
                       )}
                     </div>
 
-                    {/* === SPLIT PLAYER CARDS === */}
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2.5 sm:mb-4">
+                    {/* === SPLIT PLAYER CARDS (mobile: stack, tablet+: side by side) === */}
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
                       {/* YOU panel */}
-                      <div className={`glass-panel p-3 sm:p-4 rounded-2xl sm:rounded-3xl relative overflow-hidden flex flex-col items-center ${
-                        matchVerdict === 'WIN' ? 'winner-panel' : matchVerdict === 'LOSE' ? 'loser-panel' : 'glass-card-glow-orange'
+                      <div className={`relative overflow-hidden flex flex-col items-center p-3 sm:p-4 rounded-2xl sm:rounded-3xl verdict-card-left ${
+                        matchVerdict === 'WIN' ? 'winner-celebration' : matchVerdict === 'LOSE' ? 'loser-drama' : 'glass-panel glass-card-glow-orange'
                       }`}>
                         {matchVerdict === 'WIN' && (
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
+                          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
                         )}
                         {matchVerdict === 'LOSE' && (
-                          <div className="absolute inset-0 bg-red-950/20 pointer-events-none" />
+                          <div className="absolute inset-0 bg-red-950/25 pointer-events-none" />
                         )}
-                        <span className="text-[9px] uppercase tracking-widest text-orange-300 font-black mb-1 truncate max-w-full">
+                        <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-orange-300 font-black mb-1 truncate max-w-full px-1 text-center">
                           {username?.toUpperCase() || 'YOU'}
                         </span>
-                        <div className={`text-4xl sm:text-5xl font-game font-black mt-1 ${
-                          matchVerdict === 'WIN' ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]'
-                          : matchVerdict === 'LOSE' ? 'text-red-400' : 'text-white'
-                        }`}>{finalScoreP1}</div>
-                        <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold mt-1">PIPES</span>
-                        {matchVerdict === 'WIN' && <div className="text-sm mt-1">🏆</div>}
-                        {matchVerdict === 'LOSE' && <div className="text-sm mt-1">💀</div>}
+                        <div className={`text-3xl sm:text-5xl font-game font-black score-reveal ${
+                          matchVerdict === 'WIN' ? 'text-emerald-400' : matchVerdict === 'LOSE' ? 'text-red-400' : 'text-white'
+                        }`} style={matchVerdict === 'WIN' ? { textShadow: '0 0 20px rgba(16,185,129,0.7)' } : {}}>{finalScoreP1}</div>
+                        <span className="text-[7px] sm:text-[8px] uppercase tracking-widest text-white/45 font-bold mt-0.5">PIPES</span>
                         <div className={`mt-2 text-[7px] sm:text-[8px] font-game uppercase tracking-wider px-2 py-0.5 rounded-full ${
                           firstCrashed === 'P1' ? 'bg-red-500/20 text-red-400' :
                           firstCrashed === 'P2' ? 'bg-emerald-500/20 text-emerald-400' :
                           'bg-yellow-500/20 text-yellow-400'
                         }`}>
-                          {firstCrashed === 'P1' ? '💥 CRASHED FIRST' : firstCrashed === 'P2' ? '⚡ SURVIVED LONGER' : '💥 SIMULTANEOUS'}
+                          {firstCrashed === 'P1' ? '💥 FIRST CRASH' : firstCrashed === 'P2' ? '⚡ HELD LONGER' : '💥 SIMULTANEOUS'}
                         </div>
+                        {matchVerdict === 'WIN' && <div className="text-base mt-1">🏆</div>}
+                        {matchVerdict === 'LOSE' && <div className="text-base mt-1">💀</div>}
                       </div>
 
                       {/* OPPONENT panel */}
-                      <div className={`glass-panel p-3 sm:p-4 rounded-2xl sm:rounded-3xl relative overflow-hidden flex flex-col items-center ${
-                        matchVerdict === 'LOSE' ? 'winner-panel' : matchVerdict === 'WIN' ? 'loser-panel' : 'glass-card-glow-indigo'
+                      <div className={`relative overflow-hidden flex flex-col items-center p-3 sm:p-4 rounded-2xl sm:rounded-3xl verdict-card-right ${
+                        matchVerdict === 'LOSE' ? 'winner-celebration' : matchVerdict === 'WIN' ? 'loser-drama' : 'glass-panel glass-card-glow-indigo'
                       }`}>
                         {matchVerdict === 'LOSE' && (
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
+                          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
                         )}
                         {matchVerdict === 'WIN' && (
-                          <div className="absolute inset-0 bg-red-950/20 pointer-events-none" />
+                          <div className="absolute inset-0 bg-red-950/25 pointer-events-none" />
                         )}
-                        <span className="text-[9px] uppercase tracking-widest text-indigo-300 font-black mb-1 truncate max-w-full">
-                          {opponentName}
+                        <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-indigo-300 font-black mb-1 truncate max-w-full px-1 text-center">
+                          {opponentName || 'OPPONENT'}
                         </span>
-                        <div className={`text-4xl sm:text-5xl font-game font-black mt-1 ${
-                          matchVerdict === 'LOSE' ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]'
-                          : matchVerdict === 'WIN' ? 'text-red-400' : 'text-white'
-                        }`}>{finalScoreP2}</div>
-                        <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold mt-1">PIPES</span>
-                        {matchVerdict === 'LOSE' && <div className="text-sm mt-1">🏆</div>}
-                        {matchVerdict === 'WIN' && <div className="text-sm mt-1">💀</div>}
+                        <div className={`text-3xl sm:text-5xl font-game font-black score-reveal ${
+                          matchVerdict === 'LOSE' ? 'text-emerald-400' : matchVerdict === 'WIN' ? 'text-red-400' : 'text-white'
+                        }`} style={matchVerdict === 'LOSE' ? { textShadow: '0 0 20px rgba(16,185,129,0.7)' } : {}}>{finalScoreP2}</div>
+                        <span className="text-[7px] sm:text-[8px] uppercase tracking-widest text-white/45 font-bold mt-0.5">PIPES</span>
                         <div className={`mt-2 text-[7px] sm:text-[8px] font-game uppercase tracking-wider px-2 py-0.5 rounded-full ${
                           firstCrashed === 'P2' ? 'bg-red-500/20 text-red-400' :
                           firstCrashed === 'P1' ? 'bg-emerald-500/20 text-emerald-400' :
                           'bg-yellow-500/20 text-yellow-400'
                         }`}>
-                          {firstCrashed === 'P2' ? '💥 CRASHED FIRST' : firstCrashed === 'P1' ? '⚡ SURVIVED LONGER' : '💥 SIMULTANEOUS'}
+                          {firstCrashed === 'P2' ? '💥 FIRST CRASH' : firstCrashed === 'P1' ? '⚡ HELD LONGER' : '💥 SIMULTANEOUS'}
                         </div>
+                        {matchVerdict === 'LOSE' && <div className="text-base mt-1">🏆</div>}
+                        {matchVerdict === 'WIN' && <div className="text-base mt-1">💀</div>}
                       </div>
                     </div>
 
-                    {/* === ROAST VERDICT === */}
-                    <div className="glass-panel p-3 sm:p-4 mb-2.5 sm:mb-3 rounded-xl sm:rounded-2xl border border-orange-500/20 shadow-lg">
-                      <p className="text-orange-400 text-[8px] sm:text-[9px] font-game uppercase tracking-widest mb-1 flex items-center justify-center gap-1">🔥 AI ROAST MASTER 🔥</p>
-                      <p className="text-white/90 font-medium text-[11px] sm:text-xs italic leading-relaxed text-center">"{commentary}"</p>
+                    {/* === ROAST VERDICT — emotionally devastating === */}
+                    <div className="glass-panel animate-roast-card border border-orange-500/18 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-2.5" style={{ boxShadow: '0 0 30px rgba(249,115,22,0.06), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+                      <p className="text-orange-400 text-[7px] sm:text-[8px] font-game uppercase tracking-[0.45em] mb-2 flex items-center justify-center gap-1.5">
+                        <span className="text-base">🔥</span> AI ROAST MASTER <span className="text-base">🔥</span>
+                      </p>
+                      <p className="roast-shimmer-text font-medium text-[11px] sm:text-[12px] leading-relaxed text-center italic px-1">
+                        "{commentary}"
+                      </p>
                     </div>
 
-                    {/* === OMEGLE AUTO-NEXT COUNTDOWN === */}
-                    <div className="glass-panel p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-indigo-500/20 text-center animate-searching">
-                      <div className="flex items-center justify-center gap-2 sm:gap-3">
-                        <div className="w-5 h-5 sm:w-7 sm:h-7 border-2 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin flex-shrink-0" />
+                    {/* === AUTO-NEXT COUNTDOWN === */}
+                    <div className="glass-panel border border-indigo-500/18 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-center auto-next-ring">
+                      <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-indigo-500/25 border-t-indigo-400 rounded-full animate-spin flex-shrink-0" />
                         <div>
-                          <p className="text-indigo-300 text-[9px] sm:text-[10px] font-game uppercase tracking-widest">🎰 Finding next opponent...</p>
-                          <p className="text-white/40 text-[8px] sm:text-[9px] mt-0.5">Auto in <span className="text-white font-black">{duoRoastCountdown}s</span></p>
+                          <p className="text-indigo-300 text-[8px] sm:text-[9px] font-game uppercase tracking-widest">🎰 Finding next opponent...</p>
+                          <p className="text-white/35 text-[7px] sm:text-[8px] mt-0.5">Auto in <span className="text-white font-black">{duoRoastCountdown}s</span></p>
                         </div>
+                      </div>
+                      {/* Visual countdown bar */}
+                      <div className="w-full h-1 bg-white/8 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full countdown-bar"
+                          style={{ animationDuration: `${duoRoastCountdown}s` }}
+                        />
                       </div>
                     </div>
                   </div>
