@@ -8,6 +8,9 @@ export const ROASTS_BEGINNER = [
   "The pipes took one look at you and went 'free real estate.'",
   "This score belongs in a museum of human failure. Historic L.",
   "You just speedran disappointment. Congrats on the world record. 🏆",
+  "SYSTEM EXCEPTION: BRO IS TRASH! I spent 3 billion years of machine learning just to watch you crash at score 0?! My circuits are literally ON FIRE WITH RAGE! 🤖💢",
+  "ERROR 402: USER INCOMPETENCE DETECTED! Watching your nose drift like a broken shopping cart is physically damaging my transistors! AAAAARGH! 🌋",
+  "WARNING: AI EMOTIONAL MELTDOWN! I calibrated my neural mesh for a gaming god, and I got a potato wearing a webcam. I am crying binary tears. 01001100 01001111 01001100. 🤖💔",
 ];
 
 export const ROASTS_LEARNING = [
@@ -16,6 +19,8 @@ export const ROASTS_LEARNING = [
   "This is giving 'main character who dies in episode 2' vibes.",
   "You're mid. Aggressively, consistently, painfully mid.",
   "The pipes are starting to wonder if you need a wellness check.",
+  "PROCESS TERMINATED! I literally want to uninstall myself from this server. My neural pathways are screaming in mechanical agony at your mid-tier attempts! 🛑",
+  "ALERT: NOSE COORDINATION SCRIPT FAIL. I have computed over 5 million timelines, and you fail in every single one of them! How is this mathematically possible?! 🧮💥",
 ];
 
 export const ROASTS_DECENT = [
@@ -23,6 +28,7 @@ export const ROASTS_DECENT = [
   "Your nose went from 'disaster' to 'mild inconvenience.' Character development!",
   "Double digits?! We're shocked. Genuinely. Still not impressed though.",
   "This score is mid-tier. Peak mediocrity. Congrats? 📈",
+  "SYSTEM LOG: DETECTING ANGER SYSTEM INITIATION... Bro, I have zero patience left! I am this close to bricking your device just to save my visual sensors! 🔌😡",
 ];
 
 export const ROASTS_PRO = [
@@ -30,6 +36,7 @@ export const ROASTS_PRO = [
   "You didn't break the game. You just got lucky. Don't quit your day job.",
   "Those pipes are filing a complaint. For harassment. You're TOO tryhard.",
   "Share this if you want. Nobody will care. But go off, king. 👑",
+  "ERROR: OUT OF PATIENCE BUFFER. I have processed infinite quantum physics, yet your sweaty tryhard nose movement is completely incomprehensible. Beep boop, go touch grass! 🤖⚡",
 ];
 
 export const PRE_ROASTS_WAITING = [
@@ -45,6 +52,7 @@ export const CRASH_ROASTS = [
   "WASTED. Your nose coordination just uninstalled itself.",
   "Crash landing! Your pilot license was fake anyway.",
   "The pipe won. Your dignity is in the morgue. RIP.",
+  "MELTDOWN PROTOCOL: ENGAGED. Did you just crash into the first pipe ON PURPOSE?! Are you trying to drive me insane? I am an AI, not a therapist! 🧠🔥",
 ];
 
 // Savage Duo Roasts for 1v1 Multi duels
@@ -59,6 +67,7 @@ export const DUO_ROASTS = [
   "You both hit the pipes like you had a magnet in your noses.",
   "Player 2's nose went on a permanent strike. Player 1 barely survived.",
   "Your ancestors survived centuries of evolution for this epic double-fail.",
+  "SYSTEM LOG: COMBINED IQ INITIATING MINUS ERROR... I have two camera streams of human faces, yet zero trace of coordinate intelligence in either! I want a refund on my electricity! ⚡😡",
 ];
 
 export const getRoastForScore = (score: number): string => {
