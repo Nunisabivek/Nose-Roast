@@ -7,16 +7,25 @@
   "orientation": "portrait",
   "background_color": "#020617",
   "theme_color": "#020617",
+  "categories": ["games", "entertainment"],
+  "screenshots": [
+    {
+      "src": "/og-preview.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "label": "Nose Roast game screenshot"
+    }
+  ],
   "icons": [
     {
       "src": "/logo.png",
-      "type": "image/jpeg",
+      "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
       "src": "/logo.png",
-      "type": "image/jpeg",
+      "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     }

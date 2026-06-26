@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://nose-roast.vercel.app/</loc>
+    <lastmod>2026-06-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://nose-roast.vercel.app/og-preview.png</image:loc>
+      <image:title>Nose Roast — Control a Bird With Your Nose</image:title>
+      <image:caption>Free AI browser game where you fly a bird using your nose and get roasted by AI</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://nose-roast.vercel.app/privacy</loc>
+    <lastmod>2026-06-26</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.3</priority>
   </url>
 </urlset>
